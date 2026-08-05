@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wisconsin Basketball</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #f4f5f7; color: #111; }
+
+    header {
+      background: #c1121c;
+      color: white;
+      padding: 18px 28px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p  { font-size: 0.82rem; opacity: 0.8; margin-top: 3px; }
+
+    .filters {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 14px 28px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .filter-group { position: relative; }
+    .filter-group .filter-label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #999; margin-bottom: 4px; }
+    .filter-btn {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 0.85rem;
+      min-width: 160px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-btn:focus { outline: 2px solid #c1121c; border-color: transparent; }
+    .filter-btn .arrow { font-size: 0.65rem; color: #aaa; }
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      z-index: 100;
+      min-width: 200px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+    .dropdown.open { display: block; }
+    .dropdown label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .dropdown label:hover { background: #f5f5f5; }
+    .dropdown input[type=checkbox] { accent-color: #c1121c; width: 14px; height: 14px; }
+    .dropdown .select-all { border-bottom: 1px solid #eee; font-weight: 600; color: #555; }
+    .filters .reset-btn { background: #c1121c; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; align-self: flex-end; }
+    .filters .reset-btn:hover { background: #a50e18; }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 16px;
+      padding: 24px 28px;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 14px; }
+    .card canvas { max-height: 260px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Wisconsin Badgers &mdash; Possession Analysis</h1>
+  <p>Heatmaps by possession duration</p>
+</header>
+
+<div class="filters">
+  <div class="filter-group">
+    <span class="filter-label">Player</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-player')">
+      <span id="lbl-player">All Players</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-player">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-player','player',this)"> Select All</label>
+      <label class="select-all"><input type="checkbox" onchange="selectReturning(this)"> Returning Players</label>
+      {% for p in players %}
+      <label><input type="checkbox" value="{{ p }}" onchange="onFilterChange('player')"> {{ p }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Play Type</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-play-type')">
+      <span id="lbl-play-type">All Play Types</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-play-type">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-play-type','play_type',this)"> Select All</label>
+      {% for pt in play_types %}
+      <label><input type="checkbox" value="{{ pt }}" onchange="onFilterChange('play_type')"> {{ pt }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Game</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-game')">
+      <span id="lbl-game">All Games</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-game">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-game','game',this)"> Select All</label>
+      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('wins',this)"> Wins</label>
+      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('losses',this)"> Losses</label>
+      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('non-conference',this)"> Non-Conference</label>
+      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('conference',this)"> Conference</label>
+      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('postseason',this)"> Postseason</label>
+      {% for g in games %}
+      <label><input type="checkbox" value="{{ g }}" onchange="onFilterChange('game')"> {{ g }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Starts With</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-starts-with')">
+      <span id="lbl-starts-with">All Players</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-starts-with">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-starts-with','starts_with',this)"> Select All</label>
+      {% for s in starts_with %}
+      <label><input type="checkbox" value="{{ s }}" onchange="onFilterChange('starts_with')"> {{ s }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <button class="reset-btn" onclick="reset()">Reset</button>
+</div>
+
+<div class="charts">
+  <div class="card">
+    <h2>Turnover Rate by Duration</h2>
+    <canvas id="chart-to"></canvas>
+  </div>
+  <div class="card">
+    <h2>Field Goal % by Duration</h2>
+    <canvas id="chart-fg"></canvas>
+  </div>
+  <div class="card">
+    <h2>Points Per Possession by Duration</h2>
+    <canvas id="chart-ppp"></canvas>
+  </div>
+</div>
+
+<script>
+  const BUCKETS = ['0-5s', '5-10s', '10-15s', '15-20s', '20+s'];
+  const charts = {};
+
+  // Map a 0–100 value to a green-to-red color (or red-to-green)
+  function heatColor(value, min, max, redIsHigh) {
+    const t = max === min ? 0.5 : (value - min) / (max - min);
+    const intensity = redIsHigh ? t : 1 - t;
+    const r = Math.round(220 * intensity + 40 * (1 - intensity));
+    const g = Math.round(40 * intensity + 180 * (1 - intensity));
+    return `rgb(${r}, ${g}, 60)`;
+  }
+
+  function drawChart(id, rows, valueKey, redIsHigh, label, rawKey, rawLabel) {
+    const sorted = BUCKETS.map(b => rows.find(r => r.bucket === b) || { bucket: b, [valueKey]: 0, count: 0 });
+    const values = sorted.map(r => +(r[valueKey] ?? 0).toFixed(2));
+    const counts = sorted.map(r => r.count ?? 0);
+    const raws   = sorted.map(r => r[rawKey] ?? 0);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const colors = values.map(v => heatColor(v, min, max, redIsHigh));
+
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: BUCKETS,
+        datasets: [{ data: values, backgroundColor: colors, borderRadius: 5 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => [
+            ` ${label}: ${ctx.raw}`,
+            ` ${rawLabel}: ${raws[ctx.dataIndex]}`,
+            ` Possessions: ${counts[ctx.dataIndex]}`
+          ]}}
+        },
+        scales: {
+          x: { grid: { color: '#f0f0f0' } },
+          y: { grid: { color: '#f0f0f0' }, title: { display: true, text: label } }
+        }
+      }
+    });
+  }
+
+  function toggleDropdown(id) {
+    document.querySelectorAll('.dropdown').forEach(d => {
+      if (d.id !== id) d.classList.remove('open');
+    });
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.filter-group')) {
+      document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+    }
+  });
+
+  function getChecked(ddId) {
+    return [...document.querySelectorAll(`#${ddId} input:checked`)].map(el => el.value).filter(v => v);
+  }
+
+  const RETURNING = ['Alba Martín', 'Dorja Iva Zaja', 'Kyrah Daniels', 'Laci Steele', 'Nikki Kerstein', 'Shay Bollin'];
+
+  const GAME_GROUPS = {
+    'wins':           ['Oakland@Wisconsin','UWMilwaukee@Wisconsin','BowlingGreen@Wisconsin','UWGreenBay@Wisconsin','Wisconsin@IllinoisChicago','Detroit@Wisconsin','MichiganState@Wisconsin','SanDiego@Wisconsin','IU-Indy@Wisconsin','Wisconsin@Rutgers','PennState@Wisconsin','Oregon@Wisconsin','Nebraska@Wisconsin','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin'],
+    'losses':         ['Wisconsin@Marquette','Wisconsin@Mississippi','JamesMadison@Wisconsin','Wisconsin@Maryland','Purdue@Wisconsin','Wisconsin@Michigan','Wisconsin@Northwestern','Minnesota@Wisconsin','Wisconsin@Minnesota','Wisconsin@OhioState','Indiana@Wisconsin','Washington@Wisconsin','Wisconsin@Illinois','Wisconsin@USC','Wisconsin@UCLA','Iowa@Wisconsin','Wisconsin@Illinois (Tournament)','Columbia@Wisconsin'],
+    'non-conference': ['Oakland@Wisconsin','Wisconsin@Marquette','UWMilwaukee@Wisconsin','BowlingGreen@Wisconsin','UWGreenBay@Wisconsin','Wisconsin@IllinoisChicago','Detroit@Wisconsin','Wisconsin@Mississippi','JamesMadison@Wisconsin','SanDiego@Wisconsin','IU-Indy@Wisconsin'],
+    'conference':     ['MichiganState@Wisconsin','Wisconsin@Maryland','Wisconsin@Rutgers','PennState@Wisconsin','Purdue@Wisconsin','Wisconsin@Michigan','Wisconsin@Northwestern','Oregon@Wisconsin','Nebraska@Wisconsin','Minnesota@Wisconsin','Wisconsin@Minnesota','Wisconsin@OhioState','Indiana@Wisconsin','Washington@Wisconsin','Wisconsin@Illinois','Wisconsin@USC','Wisconsin@UCLA','Iowa@Wisconsin'],
+    'postseason':     ['Wisconsin@Illinois (Tournament)','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin','Columbia@Wisconsin'],
+  };
+
+  function selectGameGroup(group, checkbox) {
+    const games = GAME_GROUPS[group];
+    document.querySelectorAll('#dd-game input[value]').forEach(cb => {
+      if (games.includes(cb.value)) cb.checked = checkbox.checked;
+    });
+    onFilterChange('game');
+  }
+
+  function selectReturning(checkbox) {
+    document.querySelectorAll('#dd-player input[value]').forEach(cb => {
+      cb.checked = checkbox.checked && RETURNING.includes(cb.value);
+    });
+    onFilterChange('player');
+  }
+
+  function selectAll(ddId, filterName, checkbox) {
+    document.querySelectorAll(`#${ddId} input[type=checkbox]`).forEach(cb => cb.checked = checkbox.checked);
+    onFilterChange(filterName);
+  }
+
+  function updateLabel(labelId, values, defaultText) {
+    const lbl = document.getElementById(labelId);
+    lbl.textContent = values.length === 0 ? defaultText : `${values.length} selected`;
+  }
+
+  function onFilterChange(filterName) {
+    const map = { player: ['dd-player', 'lbl-player', 'All Players'],
+                  play_type: ['dd-play-type', 'lbl-play-type', 'All Play Types'],
+                  game: ['dd-game', 'lbl-game', 'All Games'],
+                  starts_with: ['dd-starts-with', 'lbl-starts-with', 'All Players'] };
+    const [ddId, lblId, def] = map[filterName];
+    updateLabel(lblId, getChecked(ddId), def);
+    update();
+  }
+
+  function getParams() {
+    const p = new URLSearchParams();
+    getChecked('dd-player').forEach(v => p.append('player', v));
+    getChecked('dd-play-type').forEach(v => p.append('play_type', v));
+    getChecked('dd-game').forEach(v => p.append('game', v));
+    getChecked('dd-starts-with').forEach(v => p.append('starts_with', v));
+    return p.toString() ? '?' + p : '';
+  }
+
+  async function update() {
+    const qs = getParams();
+    const [toData, fgData, pppData] = await Promise.all([
+      fetch(`/api/turnover-rate${qs}`).then(r => r.json()),
+      fetch(`/api/fg-pct${qs}`).then(r => r.json()),
+      fetch(`/api/ppp${qs}`).then(r => r.json()),
+    ]);
+    drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers');
+    drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made');
+    drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points');
+  }
+
+  function reset() {
+    document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
+    updateLabel('lbl-player',      [], 'All Players');
+    updateLabel('lbl-play-type',   [], 'All Play Types');
+    updateLabel('lbl-game',        [], 'All Games');
+    updateLabel('lbl-starts-with', [], 'All Players');
+    update();
+  }
+
+  update();
+</script>
+</body>
+</html>
