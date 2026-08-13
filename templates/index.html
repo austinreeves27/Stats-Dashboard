@@ -190,9 +190,11 @@
   const scatterCharts = {};
 
   function drawGameScatter(id, gameData, yKey, yLabel) {
-    const toPoint = d => ({ x: +d.avg_duration.toFixed(2), y: +d[yKey].toFixed(2), game: d.game, count: d.count });
-    const wins   = gameData.filter(d => GAME_GROUPS['wins'].includes(d.game)).map(toPoint);
-    const losses = gameData.filter(d => GAME_GROUPS['losses'].includes(d.game)).map(toPoint);
+    const toPoint = d => d[yKey] != null
+      ? { x: +d.avg_duration.toFixed(2), y: +d[yKey].toFixed(2), game: d.game, count: d.count }
+      : null;
+    const wins   = gameData.filter(d => GAME_GROUPS['wins'].includes(d.game)).map(toPoint).filter(Boolean);
+    const losses = gameData.filter(d => GAME_GROUPS['losses'].includes(d.game)).map(toPoint).filter(Boolean);
 
     const tooltipLabel = ctx => [
       ` ${ctx.raw.game}`,
