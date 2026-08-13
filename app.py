@@ -46,6 +46,11 @@ def api_ppp():
     return jsonify(queries.ppp_by_duration(get_filters()))
 
 
+@app.route("/api/game-scatter")
+def api_game_scatter():
+    return jsonify(queries.game_scatter(get_filters()))
+
+
 
 if __name__ == "__main__":
     import os

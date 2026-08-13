@@ -32,6 +32,50 @@ def build_where(filters):
     return where, params
 
 
+def build_where_no_game(filters):
+    """Same as build_where but ignores the game filter (used for per-game scatter)."""
+    conditions = []
+    params = []
+    for key, col in [("player", "player"), ("play_type", "play_type"), ("starts_with", "starts_with")]:
+        values = filters.get(key)
+        if not values:
+            continue
+        if isinstance(values, list):
+            placeholders = ",".join("?" * len(values))
+            conditions.append(f"{col} IN ({placeholders})")
+            params.extend(values)
+        else:
+            conditions.append(f"{col} = ?")
+            params.append(values)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    return where, params
+
+
+def game_scatter(filters):
+    """Per-game stats for scatter plots: avg duration, turnover rate, FG%, PPP."""
+    where, params = build_where_no_game(filters)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT
+            game,
+            AVG(duration) as avg_duration,
+            100.0 * SUM(CASE WHEN result = 'Turnover' THEN 1 ELSE 0 END) / COUNT(*) as turnover_rate,
+            100.0 * SUM(CASE WHEN result IN ('Make 2 Pts','Make 3 Pts','Make 2 Pts + 1 Pts','Make 3 Pts + 1 Pts','Make 2 Pts + 0 Pts') THEN 1 ELSE 0 END)
+                / NULLIF(SUM(CASE WHEN result IN ('Make 2 Pts','Make 3 Pts','Make 2 Pts + 1 Pts','Make 3 Pts + 1 Pts','Make 2 Pts + 0 Pts','Miss 2 Pts','Miss 3 Pts') THEN 1 ELSE 0 END), 0) as fg_pct,
+            1.0 * SUM(CASE WHEN result = 'Make 2 Pts' THEN 2 WHEN result = 'Make 3 Pts' THEN 3
+                           WHEN result = 'Make 2 Pts + 1 Pts' THEN 3 WHEN result = 'Make 3 Pts + 1 Pts' THEN 4
+                           WHEN result = 'Make 2 Pts + 0 Pts' THEN 2 ELSE 0 END) / COUNT(*) as ppp,
+            COUNT(*) as count
+        FROM possessions {where}
+        GROUP BY game
+    """, params)
+    rows = cur.fetchall()
+    conn.close()
+    return [{"game": r["game"], "avg_duration": r["avg_duration"], "turnover_rate": r["turnover_rate"],
+             "fg_pct": r["fg_pct"], "ppp": r["ppp"], "count": r["count"]} for r in rows]
+
+
 def possessions_for_scatter(filters):
     """Returns raw duration + result for every possession (for scatter plots)."""
     where, params = build_where(filters)
