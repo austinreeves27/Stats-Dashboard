@@ -46,10 +46,6 @@ def api_ppp():
     return jsonify(queries.ppp_by_duration(get_filters()))
 
 
-@app.route("/api/possessions")
-def api_possessions():
-    return jsonify(queries.possessions_for_scatter(get_filters()))
-
 
 if __name__ == "__main__":
     import os
