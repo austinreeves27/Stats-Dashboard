@@ -227,7 +227,7 @@
     return `rgb(${r}, ${g}, 60)`;
   }
 
-  function drawChart(id, rows, valueKey, redIsHigh, label, rawKey, rawLabel) {
+  function drawChart(id, rows, valueKey, redIsHigh, label, rawKey, rawLabel, yMax) {
     const sorted = BUCKETS.map(b => rows.find(r => r.bucket === b) || { bucket: b, [valueKey]: 0, count: 0 });
     const values = sorted.map(r => +(r[valueKey] ?? 0).toFixed(2));
     const counts = sorted.map(r => r.count ?? 0);
@@ -256,7 +256,7 @@
         },
         scales: {
           x: { grid: { color: '#f0f0f0' } },
-          y: { grid: { color: '#f0f0f0' }, title: { display: true, text: label } }
+          y: { grid: { color: '#f0f0f0' }, title: { display: true, text: label }, min: 0, max: yMax }
         }
       }
     });
@@ -342,9 +342,9 @@
       fetch(`/api/ppp${qs}`).then(r => r.json()),
       fetch(`/api/possessions${qs}`).then(r => r.json()),
     ]);
-    drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers');
-    drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made');
-    drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points');
+    drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
+    drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
+    drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
 
     drawScatter('scatter-to',  buildScatterPoints(possessions, 'turnover'), 'Turnover?',  v => (v === 0 ? 'No' : v === 1 ? 'Yes' : ''));
     drawScatter('scatter-fg',  buildScatterPoints(possessions, 'fg'),       'Result',     v => (v === 0 ? 'Miss' : v === 1 ? 'Make' : ''));
