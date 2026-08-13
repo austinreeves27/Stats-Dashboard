@@ -193,7 +193,6 @@
     const toPoint = d => ({ x: +d.avg_duration.toFixed(2), y: +d[yKey].toFixed(2), game: d.game, count: d.count });
     const wins   = gameData.filter(d => GAME_GROUPS['wins'].includes(d.game)).map(toPoint);
     const losses = gameData.filter(d => GAME_GROUPS['losses'].includes(d.game)).map(toPoint);
-    const other  = gameData.filter(d => !GAME_GROUPS['wins'].includes(d.game) && !GAME_GROUPS['losses'].includes(d.game)).map(toPoint);
 
     const tooltipLabel = ctx => [
       ` ${ctx.raw.game}`,
@@ -208,7 +207,6 @@
       data: { datasets: [
         { label: 'Win',  data: wins,   backgroundColor: 'rgba(34,139,34,0.7)',  pointRadius: 5, pointHoverRadius: 7 },
         { label: 'Loss', data: losses, backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
-        { label: 'Other', data: other, backgroundColor: 'rgba(150,150,150,0.6)', pointRadius: 5, pointHoverRadius: 7 },
       ]},
       options: {
         responsive: true,
