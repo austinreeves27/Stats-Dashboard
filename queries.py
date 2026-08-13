@@ -32,6 +32,17 @@ def build_where(filters):
     return where, params
 
 
+def possessions_for_scatter(filters):
+    """Returns raw duration + result for every possession (for scatter plots)."""
+    where, params = build_where(filters)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(f"SELECT duration, result FROM possessions {where}", params)
+    rows = cur.fetchall()
+    conn.close()
+    return [{"duration": row["duration"], "result": row["result"]} for row in rows]
+
+
 # ── YOUR QUERIES ──────────────────────────────────────────────────────────────
 # Each function gets a filters dict and returns a list of rows for the chart.
 # Duration buckets are already in the data as a "bucket" column — use them!
