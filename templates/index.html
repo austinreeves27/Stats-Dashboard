@@ -87,6 +87,8 @@
     }
     .card h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 14px; }
     .card canvas { max-height: 260px; }
+    .scatter-wrap { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+    .scatter-wrap canvas { max-height: 200px; }
   </style>
 </head>
 <body>
@@ -158,20 +160,64 @@
   <div class="card">
     <h2>Turnover Rate by Duration</h2>
     <canvas id="chart-to"></canvas>
+    <div class="scatter-wrap"><canvas id="scatter-to"></canvas></div>
   </div>
   <div class="card">
     <h2>Field Goal % by Duration</h2>
     <canvas id="chart-fg"></canvas>
+    <div class="scatter-wrap"><canvas id="scatter-fg"></canvas></div>
   </div>
   <div class="card">
     <h2>Points Per Possession by Duration</h2>
     <canvas id="chart-ppp"></canvas>
+    <div class="scatter-wrap"><canvas id="scatter-ppp"></canvas></div>
   </div>
 </div>
 
 <script>
   const BUCKETS = ['0-5s', '5-10s', '10-15s', '15-20s', '20+s'];
   const charts = {};
+  const scatterCharts = {};
+
+  const MAKE_RESULTS = new Set(['Make 2 Pts', 'Make 3 Pts', 'Make 2 Pts + 1 Pts', 'Make 3 Pts + 1 Pts', 'Make 2 Pts + 0 Pts']);
+  const MISS_RESULTS = new Set(['Miss 2 Pts', 'Miss 3 Pts']);
+  const POINTS_MAP = { 'Make 2 Pts': 2, 'Make 3 Pts': 3, 'Make 2 Pts + 1 Pts': 3, 'Make 3 Pts + 1 Pts': 4, 'Make 2 Pts + 0 Pts': 2 };
+
+  function jitter(v, amt) { return v + (Math.random() - 0.5) * amt; }
+
+  function buildScatterPoints(possessions, metric) {
+    // x = metric value, y = duration (axes flipped from before)
+    if (metric === 'turnover') {
+      return possessions.map(d => ({ x: jitter(d.result === 'Turnover' ? 1 : 0, 0.12), y: d.duration }));
+    }
+    if (metric === 'fg') {
+      return possessions
+        .filter(d => MAKE_RESULTS.has(d.result) || MISS_RESULTS.has(d.result))
+        .map(d => ({ x: jitter(MAKE_RESULTS.has(d.result) ? 1 : 0, 0.12), y: d.duration }));
+    }
+    if (metric === 'ppp') {
+      return possessions.map(d => ({ x: jitter(POINTS_MAP[d.result] ?? 0, 0.12), y: d.duration }));
+    }
+  }
+
+  function drawScatter(id, points, xLabel, xTickCb) {
+    if (scatterCharts[id]) scatterCharts[id].destroy();
+    scatterCharts[id] = new Chart(document.getElementById(id), {
+      type: 'scatter',
+      data: { datasets: [{ data: points, backgroundColor: 'rgba(193,18,28,0.25)', pointRadius: 2.5, pointHoverRadius: 3 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { grid: { color: '#f0f0f0' }, title: { display: true, text: xLabel },
+               ticks: xTickCb ? { callback: xTickCb } : {} },
+          y: { grid: { color: '#f0f0f0' }, title: { display: true, text: 'Duration (seconds)' } }
+        }
+      }
+    });
+  }
 
   // Map a 0–100 value to a green-to-red color (or red-to-green)
   function heatColor(value, min, max, redIsHigh) {
@@ -291,14 +337,19 @@
 
   async function update() {
     const qs = getParams();
-    const [toData, fgData, pppData] = await Promise.all([
+    const [toData, fgData, pppData, possessions] = await Promise.all([
       fetch(`/api/turnover-rate${qs}`).then(r => r.json()),
       fetch(`/api/fg-pct${qs}`).then(r => r.json()),
       fetch(`/api/ppp${qs}`).then(r => r.json()),
+      fetch(`/api/possessions${qs}`).then(r => r.json()),
     ]);
     drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
     drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
     drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
+
+    drawScatter('scatter-to',  buildScatterPoints(possessions, 'turnover'), 'Turnover?', v => (v === 0 ? 'No' : v === 1 ? 'Yes' : ''));
+    drawScatter('scatter-fg',  buildScatterPoints(possessions, 'fg'),       'Result',    v => (v === 0 ? 'Miss' : v === 1 ? 'Make' : ''));
+    drawScatter('scatter-ppp', buildScatterPoints(possessions, 'ppp'),      'Points');
   }
 
   function reset() {
