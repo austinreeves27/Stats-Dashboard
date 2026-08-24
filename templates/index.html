@@ -149,8 +149,22 @@
     </button>
     <div class="dropdown" id="dd-starts-with">
       <label class="select-all"><input type="checkbox" onchange="selectAll('dd-starts-with','starts_with',this)"> Select All</label>
+      <label class="select-all"><input type="checkbox" onchange="selectReturningFor('dd-starts-with','starts_with',this)"> Returning Players</label>
       {% for s in starts_with %}
       <label><input type="checkbox" value="{{ s }}" onchange="onFilterChange('starts_with')"> {{ s }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Ends With</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-ends-with')">
+      <span id="lbl-ends-with">All Players</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-ends-with">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-ends-with','ends_with',this)"> Select All</label>
+      <label class="select-all"><input type="checkbox" onchange="selectReturningFor('dd-ends-with','ends_with',this)"> Returning Players</label>
+      {% for e in ends_with %}
+      <label><input type="checkbox" value="{{ e }}" onchange="onFilterChange('ends_with')"> {{ e }}</label>
       {% endfor %}
     </div>
   </div>
@@ -313,6 +327,13 @@
     onFilterChange('player');
   }
 
+  function selectReturningFor(ddId, filterName, checkbox) {
+    document.querySelectorAll(`#${ddId} input[value]`).forEach(cb => {
+      cb.checked = checkbox.checked && RETURNING.includes(cb.value);
+    });
+    onFilterChange(filterName);
+  }
+
   function selectAll(ddId, filterName, checkbox) {
     document.querySelectorAll(`#${ddId} input[type=checkbox]`).forEach(cb => cb.checked = checkbox.checked);
     onFilterChange(filterName);
@@ -327,7 +348,8 @@
     const map = { player: ['dd-player', 'lbl-player', 'All Players'],
                   play_type: ['dd-play-type', 'lbl-play-type', 'All Play Types'],
                   game: ['dd-game', 'lbl-game', 'All Games'],
-                  starts_with: ['dd-starts-with', 'lbl-starts-with', 'All Players'] };
+                  starts_with: ['dd-starts-with', 'lbl-starts-with', 'All Players'],
+                  ends_with: ['dd-ends-with', 'lbl-ends-with', 'All Players'] };
     const [ddId, lblId, def] = map[filterName];
     updateLabel(lblId, getChecked(ddId), def);
     update();
@@ -339,6 +361,7 @@
     getChecked('dd-play-type').forEach(v => p.append('play_type', v));
     getChecked('dd-game').forEach(v => p.append('game', v));
     getChecked('dd-starts-with').forEach(v => p.append('starts_with', v));
+    getChecked('dd-ends-with').forEach(v => p.append('ends_with', v));
     return p.toString() ? '?' + p : '';
   }
 
@@ -373,10 +396,12 @@
 
   function reset() {
     document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
+    updateLabel('lbl-ends-with', [], 'All Players');
     updateLabel('lbl-player',      [], 'All Players');
     updateLabel('lbl-play-type',   [], 'All Play Types');
     updateLabel('lbl-game',        [], 'All Games');
     updateLabel('lbl-starts-with', [], 'All Players');
+    updateLabel('lbl-ends-with',   [], 'All Players');
     update();
   }
 
