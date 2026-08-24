@@ -11,18 +11,20 @@ def get_filters():
         "play_type":   request.args.getlist("play_type") or None,
         "game":        request.args.getlist("game") or None,
         "starts_with": request.args.getlist("starts_with") or None,
+        "ends_with":   request.args.getlist("ends_with") or None,
     }
 
 
 def get_filter_options():
     conn = sqlite3.connect(queries.DB)
     cur = conn.cursor()
-    players      = [r[0] for r in cur.execute("SELECT DISTINCT player      FROM possessions ORDER BY player").fetchall()]
+    players      = queries.get_players_from_descriptions()
     play_types   = [r[0] for r in cur.execute("SELECT DISTINCT play_type   FROM possessions ORDER BY play_type").fetchall()]
     games        = [r[0] for r in cur.execute("SELECT DISTINCT game        FROM possessions ORDER BY date").fetchall()]
     starts_with  = [r[0] for r in cur.execute("SELECT DISTINCT starts_with FROM possessions ORDER BY starts_with").fetchall()]
+    ends_with    = [r[0] for r in cur.execute("SELECT DISTINCT player      FROM possessions ORDER BY player").fetchall()]
     conn.close()
-    return {"players": players, "play_types": play_types, "games": games, "starts_with": starts_with}
+    return {"players": players, "play_types": play_types, "games": games, "starts_with": starts_with, "ends_with": ends_with}
 
 
 @app.route("/")

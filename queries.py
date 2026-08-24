@@ -1,4 +1,5 @@
 import sqlite3
+import re
 
 DB = "possessions.db"
 
@@ -9,14 +10,41 @@ def get_db():
     return conn
 
 
+def get_players_from_descriptions():
+    """Parse all unique player names that appear anywhere in the description column."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT DISTINCT description FROM possessions")
+    names = set()
+    for (desc,) in cur.fetchall():
+        for seg in desc.split(' > '):
+            m = re.match(r'^\d+\s+(.+)$', seg.strip())
+            if m:
+                name = m.group(1)
+                if name != 'Pts':  # filter out free throw notation false match
+                    names.add(name)
+    conn.close()
+    return sorted(names)
+
+
 def build_where(filters):
     """Turns the active filters into a SQL WHERE clause.
     Each filter value can be a single string or a list of strings.
+    Player filter matches any player mentioned anywhere in the description.
     """
     conditions = []
     params = []
 
-    for key, col in [("player", "player"), ("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with")]:
+    # Player filter: match any player mentioned in the description
+    player_values = filters.get("player")
+    if player_values:
+        if isinstance(player_values, str):
+            player_values = [player_values]
+        like_clauses = ["description LIKE ?" for _ in player_values]
+        conditions.append("(" + " OR ".join(like_clauses) + ")")
+        params.extend(f"%{p}%" for p in player_values)
+
+    for key, col in [("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with"), ("ends_with", "player")]:
         values = filters.get(key)
         if not values:
             continue
@@ -36,7 +64,16 @@ def build_where_no_game(filters):
     """Same as build_where but ignores the game filter (used for per-game scatter)."""
     conditions = []
     params = []
-    for key, col in [("player", "player"), ("play_type", "play_type"), ("starts_with", "starts_with")]:
+
+    player_values = filters.get("player")
+    if player_values:
+        if isinstance(player_values, str):
+            player_values = [player_values]
+        like_clauses = ["description LIKE ?" for _ in player_values]
+        conditions.append("(" + " OR ".join(like_clauses) + ")")
+        params.extend(f"%{p}%" for p in player_values)
+
+    for key, col in [("play_type", "play_type"), ("starts_with", "starts_with"), ("ends_with", "player")]:
         values = filters.get(key)
         if not values:
             continue
