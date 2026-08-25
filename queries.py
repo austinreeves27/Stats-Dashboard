@@ -90,7 +90,7 @@ def build_where_no_game(filters):
 
 def game_scatter(filters):
     """Per-game stats for scatter plots: avg duration, turnover rate, FG%, PPP."""
-    where, params = build_where_no_game(filters)
+    where, params = build_where(filters)
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"""
