@@ -384,7 +384,7 @@
       fetch(`/api/fg-pct${qs}`).then(r => r.json()),
       fetch(`/api/ppp${qs}`).then(r => r.json()),
     ];
-    if (!gamesSelected) fetches.push(fetch(`/api/game-scatter${qs}`).then(r => r.json()));
+    if (!hideScatter) fetches.push(fetch(`/api/game-scatter${qs}`).then(r => r.json()));
 
     const [toData, fgData, pppData, gameData] = await Promise.all(fetches);
 
@@ -392,7 +392,7 @@
     drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
     drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
 
-    if (!gamesSelected && gameData) {
+    if (!hideScatter && gameData) {
       drawGameScatter('scatter-to',  gameData, 'turnover_rate', 'Turnover Rate (%)');
       drawGameScatter('scatter-fg',  gameData, 'fg_pct',        'FG% (%)');
       drawGameScatter('scatter-ppp', gameData, 'ppp',           'PPP');
