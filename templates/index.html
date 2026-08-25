@@ -312,7 +312,11 @@
     'postseason':     ['Wisconsin@Illinois (Tournament)','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin','Columbia@Wisconsin'],
   };
 
+  const activeGameGroups = new Set();
+
   function selectGameGroup(group, checkbox) {
+    if (checkbox.checked) activeGameGroups.add(group);
+    else activeGameGroups.delete(group);
     const games = GAME_GROUPS[group];
     document.querySelectorAll('#dd-game input[value]').forEach(cb => {
       if (games.includes(cb.value)) cb.checked = checkbox.checked;
@@ -368,10 +372,11 @@
   async function update() {
     const qs = getParams();
     const gamesSelected = getChecked('dd-game').length > 0;
+    const hideScatter = gamesSelected && activeGameGroups.size === 0;
 
-    // Show/hide scatter sections based on whether a game filter is active
+    // Show/hide scatter sections: hide only when individual games are hand-picked
     ['swrap-to', 'swrap-fg', 'swrap-ppp'].forEach(id => {
-      document.getElementById(id).style.display = gamesSelected ? 'none' : 'block';
+      document.getElementById(id).style.display = hideScatter ? 'none' : 'block';
     });
 
     const fetches = [
@@ -396,6 +401,7 @@
 
   function reset() {
     document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
+    activeGameGroups.clear();
     updateLabel('lbl-ends-with', [], 'All Players');
     updateLabel('lbl-player',      [], 'All Players');
     updateLabel('lbl-play-type',   [], 'All Play Types');
