@@ -90,6 +90,28 @@
     .scatter-wrap { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
     .scatter-wrap h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; margin-bottom: 10px; }
     .scatter-wrap canvas { max-height: 200px; }
+
+    .table-section {
+      padding: 0 28px 32px;
+    }
+    .table-section h2 {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #888; margin-bottom: 12px;
+    }
+    .table-count { font-size: 0.8rem; color: #aaa; margin-bottom: 10px; }
+    .table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.82rem; }
+    thead th {
+      background: #f7f7f7; padding: 10px 14px; text-align: left;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #888; border-bottom: 1px solid #e8e8e8;
+      white-space: nowrap;
+    }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #f2f2f2; color: #222; vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #fafafa; }
+    td.desc { max-width: 420px; color: #555; font-size: 0.78rem; }
+    td.num { text-align: right; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -195,6 +217,28 @@
       <h3>Avg Duration vs PPP — by Game</h3>
       <canvas id="scatter-ppp"></canvas>
     </div>
+  </div>
+</div>
+
+<div class="table-section">
+  <h2>Possession Data</h2>
+  <div class="table-count" id="table-count"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Game</th>
+          <th>Date</th>
+          <th>Starts With</th>
+          <th>Ends With</th>
+          <th>Play Type</th>
+          <th>Duration</th>
+          <th>Result</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody id="possession-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -383,14 +427,30 @@
       fetch(`/api/turnover-rate${qs}`).then(r => r.json()),
       fetch(`/api/fg-pct${qs}`).then(r => r.json()),
       fetch(`/api/ppp${qs}`).then(r => r.json()),
+      fetch(`/api/possessions-table${qs}`).then(r => r.json()),
     ];
     if (!hideScatter) fetches.push(fetch(`/api/game-scatter${qs}`).then(r => r.json()));
 
-    const [toData, fgData, pppData, gameData] = await Promise.all(fetches);
+    const [toData, fgData, pppData, tableData, gameData] = await Promise.all(fetches);
 
     drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
     drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
     drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
+
+    // Render possession table
+    document.getElementById('table-count').textContent = `${tableData.length} possessions`;
+    const tbody = document.getElementById('possession-tbody');
+    tbody.innerHTML = tableData.map(r => `
+      <tr>
+        <td>${r.game}</td>
+        <td>${r.date}</td>
+        <td>${r.starts_with}</td>
+        <td>${r.player}</td>
+        <td>${r.play_type}</td>
+        <td class="num">${r.duration.toFixed(1)}s</td>
+        <td>${r.result}</td>
+        <td class="desc">${r.description}</td>
+      </tr>`).join('');
 
     if (!hideScatter && gameData) {
       drawGameScatter('scatter-to',  gameData, 'turnover_rate', 'Turnover Rate (%)');

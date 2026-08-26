@@ -53,6 +53,11 @@ def api_game_scatter():
     return jsonify(queries.game_scatter(get_filters()))
 
 
+@app.route("/api/possessions-table")
+def api_possessions_table():
+    return jsonify(queries.possessions_table(get_filters()))
+
+
 
 if __name__ == "__main__":
     import os

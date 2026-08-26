@@ -113,6 +113,21 @@ def game_scatter(filters):
              "fg_pct": r["fg_pct"], "ppp": r["ppp"], "count": r["count"]} for r in rows]
 
 
+def possessions_table(filters):
+    """Returns filtered possession rows for the data table."""
+    where, params = build_where(filters)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT game, date, starts_with, player, play_type, duration, result, description
+        FROM possessions {where}
+        ORDER BY date, game, id
+    """, params)
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def possessions_for_scatter(filters):
     """Returns raw duration + result for every possession (for scatter plots)."""
     where, params = build_where(filters)
