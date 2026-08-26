@@ -58,6 +58,11 @@ def api_possessions_table():
     return jsonify(queries.possessions_table(get_filters()))
 
 
+@app.route("/api/pie-breakdowns")
+def api_pie_breakdowns():
+    return jsonify(queries.pie_breakdowns(get_filters()))
+
+
 
 if __name__ == "__main__":
     import os

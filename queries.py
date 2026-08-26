@@ -113,6 +113,24 @@ def game_scatter(filters):
              "fg_pct": r["fg_pct"], "ppp": r["ppp"], "count": r["count"]} for r in rows]
 
 
+def pie_breakdowns(filters):
+    """Returns counts grouped by result, play_type, starts_with, and player for pie charts."""
+    where, params = build_where(filters)
+    conn = get_db()
+    cur = conn.cursor()
+    def query(col):
+        cur.execute(f"SELECT {col}, COUNT(*) as n FROM possessions {where} GROUP BY {col} ORDER BY n DESC", params)
+        return [{"label": r[0], "count": r[1]} for r in cur.fetchall()]
+    data = {
+        "result":      query("result"),
+        "play_type":   query("play_type"),
+        "starts_with": query("starts_with"),
+        "ends_with":   query("player"),
+    }
+    conn.close()
+    return data
+
+
 def possessions_table(filters):
     """Returns filtered possession rows for the data table."""
     where, params = build_where(filters)

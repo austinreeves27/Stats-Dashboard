@@ -113,6 +113,44 @@
     tbody tr:hover td { background: #fafafa; }
     td.desc { max-width: 420px; color: #555; font-size: 0.78rem; }
     td.num { text-align: right; white-space: nowrap; }
+
+    .tabs {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0 28px;
+      display: flex;
+      gap: 4px;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #888;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+    }
+    .tab-btn.active { color: #c1121c; border-bottom-color: #c1121c; }
+    .tab-btn:hover:not(.active) { color: #444; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .pie-charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      padding: 24px 28px;
+    }
+    .pie-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .pie-card h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 14px; }
+    .pie-card canvas { max-height: 260px; }
   </style>
 </head>
 <body>
@@ -121,6 +159,11 @@
   <h1>Wisconsin Badgers &mdash; Possession Analysis</h1>
   <p>Heatmaps by possession duration</p>
 </header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('duration')">Duration Analysis</button>
+  <button class="tab-btn" onclick="switchTab('breakdown')">Breakdowns</button>
+</div>
 
 <div class="filters">
   <div class="filter-group">
@@ -194,52 +237,75 @@
   <button class="reset-btn" onclick="reset()">Reset</button>
 </div>
 
-<div class="charts">
-  <div class="card">
-    <h2>Turnover Rate by Duration</h2>
-    <canvas id="chart-to"></canvas>
-    <div class="scatter-wrap" id="swrap-to">
-      <h3>Avg Duration vs Turnover Rate — by Game</h3>
-      <canvas id="scatter-to"></canvas>
+<div id="tab-duration" class="tab-panel active">
+  <div class="charts">
+    <div class="card">
+      <h2>Turnover Rate by Duration</h2>
+      <canvas id="chart-to"></canvas>
+      <div class="scatter-wrap" id="swrap-to">
+        <h3>Avg Duration vs Turnover Rate — by Game</h3>
+        <canvas id="scatter-to"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Field Goal % by Duration</h2>
+      <canvas id="chart-fg"></canvas>
+      <div class="scatter-wrap" id="swrap-fg">
+        <h3>Avg Duration vs FG% — by Game</h3>
+        <canvas id="scatter-fg"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Points Per Possession by Duration</h2>
+      <canvas id="chart-ppp"></canvas>
+      <div class="scatter-wrap" id="swrap-ppp">
+        <h3>Avg Duration vs PPP — by Game</h3>
+        <canvas id="scatter-ppp"></canvas>
+      </div>
     </div>
   </div>
-  <div class="card">
-    <h2>Field Goal % by Duration</h2>
-    <canvas id="chart-fg"></canvas>
-    <div class="scatter-wrap" id="swrap-fg">
-      <h3>Avg Duration vs FG% — by Game</h3>
-      <canvas id="scatter-fg"></canvas>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Points Per Possession by Duration</h2>
-    <canvas id="chart-ppp"></canvas>
-    <div class="scatter-wrap" id="swrap-ppp">
-      <h3>Avg Duration vs PPP — by Game</h3>
-      <canvas id="scatter-ppp"></canvas>
+
+  <div class="table-section">
+    <h2>Possession Data</h2>
+    <div class="table-count" id="table-count"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Game</th>
+            <th>Date</th>
+            <th>Starts With</th>
+            <th>Ends With</th>
+            <th>Play Type</th>
+            <th>Duration</th>
+            <th>Result</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody id="possession-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<div class="table-section">
-  <h2>Possession Data</h2>
-  <div class="table-count" id="table-count"></div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Game</th>
-          <th>Date</th>
-          <th>Starts With</th>
-          <th>Ends With</th>
-          <th>Play Type</th>
-          <th>Duration</th>
-          <th>Result</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody id="possession-tbody"></tbody>
-    </table>
+<div id="tab-breakdown" class="tab-panel">
+  <div class="pie-charts">
+    <div class="pie-card">
+      <h2>Possession Results</h2>
+      <canvas id="pie-result"></canvas>
+    </div>
+    <div class="pie-card">
+      <h2>Play Type Breakdown</h2>
+      <canvas id="pie-playtype"></canvas>
+    </div>
+    <div class="pie-card">
+      <h2>Possessions by Initiator</h2>
+      <canvas id="pie-startswith"></canvas>
+    </div>
+    <div class="pie-card">
+      <h2>Possessions by Finisher</h2>
+      <canvas id="pie-endswith"></canvas>
+    </div>
   </div>
 </div>
 
@@ -247,6 +313,41 @@
   const BUCKETS = ['0-5s', '5-10s', '10-15s', '15-20s', '20+s'];
   const charts = {};
   const scatterCharts = {};
+  const pieCharts = {};
+  let activeTab = 'duration';
+
+  const PIE_COLORS = [
+    '#c1121c','#e85d04','#f48c06','#e9c46a','#2a9d8f',
+    '#264653','#6a4c93','#457b9d','#a8dadc','#8ecae6'
+  ];
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', ['duration','breakdown'][i] === tab);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    update();
+  }
+
+  function drawPie(id, data) {
+    if (pieCharts[id]) pieCharts[id].destroy();
+    pieCharts[id] = new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: {
+        labels: data.map(d => d.label),
+        datasets: [{ data: data.map(d => d.count), backgroundColor: PIE_COLORS }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} possessions` } }
+        }
+      }
+    });
+  }
 
   function drawGameScatter(id, gameData, yKey, yLabel) {
     const toPoint = d => d[yKey] != null
@@ -416,47 +517,55 @@
 
   async function update() {
     const qs = getParams();
-    const gamesSelected = getChecked('dd-game').length > 0;
-    const hideScatter = gamesSelected && activeGameGroups.size === 0;
 
-    // Show/hide scatter sections: hide only when individual games are hand-picked
-    ['swrap-to', 'swrap-fg', 'swrap-ppp'].forEach(id => {
-      document.getElementById(id).style.display = hideScatter ? 'none' : 'block';
-    });
+    if (activeTab === 'duration') {
+      const gamesSelected = getChecked('dd-game').length > 0;
+      const hideScatter = gamesSelected && activeGameGroups.size === 0;
 
-    const fetches = [
-      fetch(`/api/turnover-rate${qs}`).then(r => r.json()),
-      fetch(`/api/fg-pct${qs}`).then(r => r.json()),
-      fetch(`/api/ppp${qs}`).then(r => r.json()),
-      fetch(`/api/possessions-table${qs}`).then(r => r.json()),
-    ];
-    if (!hideScatter) fetches.push(fetch(`/api/game-scatter${qs}`).then(r => r.json()));
+      ['swrap-to', 'swrap-fg', 'swrap-ppp'].forEach(id => {
+        document.getElementById(id).style.display = hideScatter ? 'none' : 'block';
+      });
 
-    const [toData, fgData, pppData, tableData, gameData] = await Promise.all(fetches);
+      const fetches = [
+        fetch(`/api/turnover-rate${qs}`).then(r => r.json()),
+        fetch(`/api/fg-pct${qs}`).then(r => r.json()),
+        fetch(`/api/ppp${qs}`).then(r => r.json()),
+        fetch(`/api/possessions-table${qs}`).then(r => r.json()),
+      ];
+      if (!hideScatter) fetches.push(fetch(`/api/game-scatter${qs}`).then(r => r.json()));
 
-    drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
-    drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
-    drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
+      const [toData, fgData, pppData, tableData, gameData] = await Promise.all(fetches);
 
-    // Render possession table
-    document.getElementById('table-count').textContent = `${tableData.length} possessions`;
-    const tbody = document.getElementById('possession-tbody');
-    tbody.innerHTML = tableData.map(r => `
-      <tr>
-        <td>${r.game}</td>
-        <td>${r.date}</td>
-        <td>${r.starts_with}</td>
-        <td>${r.player}</td>
-        <td>${r.play_type}</td>
-        <td class="num">${r.duration.toFixed(1)}s</td>
-        <td>${r.result}</td>
-        <td class="desc">${r.description}</td>
-      </tr>`).join('');
+      drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
+      drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
+      drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
 
-    if (!hideScatter && gameData) {
-      drawGameScatter('scatter-to',  gameData, 'turnover_rate', 'Turnover Rate (%)');
-      drawGameScatter('scatter-fg',  gameData, 'fg_pct',        'FG% (%)');
-      drawGameScatter('scatter-ppp', gameData, 'ppp',           'PPP');
+      document.getElementById('table-count').textContent = `${tableData.length} possessions`;
+      const tbody = document.getElementById('possession-tbody');
+      tbody.innerHTML = tableData.map(r => `
+        <tr>
+          <td>${r.game}</td>
+          <td>${r.date}</td>
+          <td>${r.starts_with}</td>
+          <td>${r.player}</td>
+          <td>${r.play_type}</td>
+          <td class="num">${r.duration.toFixed(1)}s</td>
+          <td>${r.result}</td>
+          <td class="desc">${r.description}</td>
+        </tr>`).join('');
+
+      if (!hideScatter && gameData) {
+        drawGameScatter('scatter-to',  gameData, 'turnover_rate', 'Turnover Rate (%)');
+        drawGameScatter('scatter-fg',  gameData, 'fg_pct',        'FG% (%)');
+        drawGameScatter('scatter-ppp', gameData, 'ppp',           'PPP');
+      }
+
+    } else if (activeTab === 'breakdown') {
+      const pieData = await fetch(`/api/pie-breakdowns${qs}`).then(r => r.json());
+      drawPie('pie-result',     pieData.result);
+      drawPie('pie-playtype',   pieData.play_type);
+      drawPie('pie-startswith', pieData.starts_with);
+      drawPie('pie-endswith',   pieData.ends_with);
     }
   }
 
