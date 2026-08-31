@@ -12,6 +12,7 @@ def get_filters():
         "game":        request.args.getlist("game") or None,
         "starts_with": request.args.getlist("starts_with") or None,
         "ends_with":   request.args.getlist("ends_with") or None,
+        "bucket":      request.args.getlist("bucket") or None,
     }
 
 

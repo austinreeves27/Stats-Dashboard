@@ -290,6 +290,22 @@
 </div>
 
 <div id="tab-breakdown" class="tab-panel">
+  <div class="filters" style="border-top: none;">
+    <div class="filter-group">
+      <span class="filter-label">Duration Bucket</span>
+      <button class="filter-btn" onclick="toggleDropdown('dd-bucket')" style="min-width:140px;">
+        <span id="lbl-bucket">All Buckets</span><span class="arrow">&#9660;</span>
+      </button>
+      <div class="dropdown" id="dd-bucket">
+        <label class="select-all"><input type="checkbox" onchange="selectAll('dd-bucket','bucket',this); onBreakdownFilterChange()"> Select All</label>
+        <label><input type="checkbox" value="0-5s"   onchange="onBreakdownFilterChange()"> 0-5s</label>
+        <label><input type="checkbox" value="5-10s"  onchange="onBreakdownFilterChange()"> 5-10s</label>
+        <label><input type="checkbox" value="10-15s" onchange="onBreakdownFilterChange()"> 10-15s</label>
+        <label><input type="checkbox" value="15-20s" onchange="onBreakdownFilterChange()"> 15-20s</label>
+        <label><input type="checkbox" value="20+s"   onchange="onBreakdownFilterChange()"> 20+s</label>
+      </div>
+    </div>
+  </div>
   <div class="pie-charts">
     <div class="pie-card">
       <h2>Possessions by Duration Bucket</h2>
@@ -515,6 +531,12 @@
     lbl.textContent = values.length === 0 ? defaultText : `${values.length} selected`;
   }
 
+  function onBreakdownFilterChange() {
+    const vals = getChecked('dd-bucket');
+    updateLabel('lbl-bucket', vals, 'All Buckets');
+    update();
+  }
+
   function onFilterChange(filterName) {
     const map = { player: ['dd-player', 'lbl-player', 'All Players'],
                   play_type: ['dd-play-type', 'lbl-play-type', 'All Play Types'],
@@ -582,7 +604,8 @@
       }
 
     } else if (activeTab === 'breakdown') {
-      const pieData = await fetch(`/api/pie-breakdowns${qs}`).then(r => r.json());
+      const bqs = qs + (qs ? '&' : '?') + getChecked('dd-bucket').map(v => `bucket=${encodeURIComponent(v)}`).join('&');
+      const pieData = await fetch(`/api/pie-breakdowns${getChecked('dd-bucket').length ? bqs : qs}`).then(r => r.json());
       drawPie('pie-bucket',     pieData.bucket);
       drawPie('pie-result',     pieData.result);
       drawPie('pie-playtype',   pieData.play_type);
