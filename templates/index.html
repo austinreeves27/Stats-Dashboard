@@ -358,9 +358,10 @@
           datalabels: {
             color: '#fff',
             font: { weight: 'bold', size: 11 },
-            formatter: (value) => {
-              const pct = ((value / total) * 100).toFixed(1);
-              return pct < 4 ? '' : `${pct}%`;
+            formatter: (value, ctx) => {
+              const pct = (value / total) * 100;
+              if (pct < 4) return '';
+              return ctx.chart.data.labels[ctx.dataIndex].replace(/ \([\d.]+%\)$/, '');
             }
           }
         }
