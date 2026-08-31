@@ -620,6 +620,7 @@
   function reset() {
     document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
     activeGameGroups.clear();
+    updateLabel('lbl-bucket',    [], 'All Buckets');
     updateLabel('lbl-ends-with', [], 'All Players');
     updateLabel('lbl-player',      [], 'All Players');
     updateLabel('lbl-play-type',   [], 'All Play Types');
