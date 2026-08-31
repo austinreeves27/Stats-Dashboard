@@ -291,6 +291,10 @@
 <div id="tab-breakdown" class="tab-panel">
   <div class="pie-charts">
     <div class="pie-card">
+      <h2>Possessions by Duration Bucket</h2>
+      <canvas id="pie-bucket"></canvas>
+    </div>
+    <div class="pie-card">
       <h2>Possession Results</h2>
       <canvas id="pie-result"></canvas>
     </div>
@@ -568,6 +572,7 @@
 
     } else if (activeTab === 'breakdown') {
       const pieData = await fetch(`/api/pie-breakdowns${qs}`).then(r => r.json());
+      drawPie('pie-bucket',     pieData.bucket);
       drawPie('pie-result',     pieData.result);
       drawPie('pie-playtype',   pieData.play_type);
       drawPie('pie-startswith', pieData.starts_with);

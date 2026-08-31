@@ -118,14 +118,17 @@ def pie_breakdowns(filters):
     where, params = build_where(filters)
     conn = get_db()
     cur = conn.cursor()
-    def query(col):
-        cur.execute(f"SELECT {col}, COUNT(*) as n FROM possessions {where} GROUP BY {col} ORDER BY n DESC", params)
+    def query(col, order="n DESC"):
+        cur.execute(f"SELECT {col}, COUNT(*) as n FROM possessions {where} GROUP BY {col} ORDER BY {order}", params)
         return [{"label": r[0], "count": r[1]} for r in cur.fetchall()]
+    bucket_order = "CASE bucket WHEN '0-5s' THEN 1 WHEN '5-10s' THEN 2 WHEN '10-15s' THEN 3 WHEN '15-20s' THEN 4 WHEN '20+s' THEN 5 END"
+    cur.execute(f"SELECT bucket, COUNT(*) as n FROM possessions {where} GROUP BY bucket ORDER BY {bucket_order}", params)
     data = {
         "result":      query("result"),
         "play_type":   query("play_type"),
         "starts_with": query("starts_with"),
         "ends_with":   query("player"),
+        "bucket":      [{"label": r[0], "count": r[1]} for r in cur.fetchall()],
     }
     conn.close()
     return data
