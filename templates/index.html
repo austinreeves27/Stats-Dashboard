@@ -604,9 +604,12 @@
       }
 
     } else if (activeTab === 'breakdown') {
+      const bucketsSelected = getChecked('dd-bucket').length > 0;
       const bqs = qs + (qs ? '&' : '?') + getChecked('dd-bucket').map(v => `bucket=${encodeURIComponent(v)}`).join('&');
-      const pieData = await fetch(`/api/pie-breakdowns${getChecked('dd-bucket').length ? bqs : qs}`).then(r => r.json());
-      drawPie('pie-bucket',     pieData.bucket);
+      const pieData = await fetch(`/api/pie-breakdowns${bucketsSelected ? bqs : qs}`).then(r => r.json());
+      const bucketCard = document.getElementById('pie-bucket').closest('.pie-card');
+      bucketCard.style.display = bucketsSelected ? 'none' : 'block';
+      if (!bucketsSelected) drawPie('pie-bucket', pieData.bucket);
       drawPie('pie-result',     pieData.result);
       drawPie('pie-playtype',   pieData.play_type);
       drawPie('pie-startswith', pieData.starts_with);
