@@ -609,11 +609,20 @@
       const pieData = await fetch(`/api/pie-breakdowns${bucketsSelected ? bqs : qs}`).then(r => r.json());
       const bucketCard = document.getElementById('pie-bucket').closest('.pie-card');
       bucketCard.style.display = bucketsSelected ? 'none' : 'block';
+      const startsWithSelected = getChecked('dd-starts-with').length > 0;
+      const endsWithSelected   = getChecked('dd-ends-with').length > 0;
+
       if (!bucketsSelected) drawPie('pie-bucket', pieData.bucket);
-      drawPie('pie-result',     pieData.result);
-      drawPie('pie-playtype',   pieData.play_type);
-      drawPie('pie-startswith', pieData.starts_with);
-      drawPie('pie-endswith',   pieData.ends_with);
+      drawPie('pie-result',   pieData.result);
+      drawPie('pie-playtype', pieData.play_type);
+
+      const startsCard = document.getElementById('pie-startswith').closest('.pie-card');
+      startsCard.style.display = startsWithSelected ? 'none' : 'block';
+      if (!startsWithSelected) drawPie('pie-startswith', pieData.starts_with);
+
+      const endsCard = document.getElementById('pie-endswith').closest('.pie-card');
+      endsCard.style.display = endsWithSelected ? 'none' : 'block';
+      if (!endsWithSelected) drawPie('pie-endswith', pieData.ends_with);
     }
   }
 
