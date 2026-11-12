@@ -164,6 +164,7 @@
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('duration')">Duration Analysis</button>
   <button class="tab-btn" onclick="switchTab('breakdown')">Breakdowns</button>
+  <button class="tab-btn" onclick="switchTab('2026-27')">2026-27</button>
 </div>
 
 <div class="filters">
@@ -174,7 +175,7 @@
     </button>
     <div class="dropdown" id="dd-player">
       <label class="select-all"><input type="checkbox" onchange="selectAll('dd-player','player',this)"> Select All</label>
-      <label class="select-all"><input type="checkbox" onchange="selectReturning(this)"> Returning Players</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectReturning(this)"> Returning Players</label>
       {% for p in players %}
       <label><input type="checkbox" value="{{ p }}" onchange="onFilterChange('player')"> {{ p }}</label>
       {% endfor %}
@@ -199,11 +200,11 @@
     </button>
     <div class="dropdown" id="dd-game">
       <label class="select-all"><input type="checkbox" onchange="selectAll('dd-game','game',this)"> Select All</label>
-      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('wins',this)"> Wins</label>
-      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('losses',this)"> Losses</label>
-      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('non-conference',this)"> Non-Conference</label>
-      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('conference',this)"> Conference</label>
-      <label class="select-all"><input type="checkbox" onchange="selectGameGroup('postseason',this)"> Postseason</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectGameGroup('wins',this)"> Wins</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectGameGroup('losses',this)"> Losses</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectGameGroup('non-conference',this)"> Non-Conference</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectGameGroup('conference',this)"> Conference</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectGameGroup('postseason',this)"> Postseason</label>
       {% for g in games %}
       <label><input type="checkbox" value="{{ g }}" onchange="onFilterChange('game')"> {{ g }}</label>
       {% endfor %}
@@ -216,7 +217,7 @@
     </button>
     <div class="dropdown" id="dd-starts-with">
       <label class="select-all"><input type="checkbox" onchange="selectAll('dd-starts-with','starts_with',this)"> Select All</label>
-      <label class="select-all"><input type="checkbox" onchange="selectReturningFor('dd-starts-with','starts_with',this)"> Returning Players</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectReturningFor('dd-starts-with','starts_with',this)"> Returning Players</label>
       {% for s in starts_with %}
       <label><input type="checkbox" value="{{ s }}" onchange="onFilterChange('starts_with')"> {{ s }}</label>
       {% endfor %}
@@ -229,7 +230,7 @@
     </button>
     <div class="dropdown" id="dd-ends-with">
       <label class="select-all"><input type="checkbox" onchange="selectAll('dd-ends-with','ends_with',this)"> Select All</label>
-      <label class="select-all"><input type="checkbox" onchange="selectReturningFor('dd-ends-with','ends_with',this)"> Returning Players</label>
+      <label class="select-all only-2025-26"><input type="checkbox" onchange="selectReturningFor('dd-ends-with','ends_with',this)"> Returning Players</label>
       {% for e in ends_with %}
       <label><input type="checkbox" value="{{ e }}" onchange="onFilterChange('ends_with')"> {{ e }}</label>
       {% endfor %}
@@ -337,19 +338,61 @@
   const pieCharts = {};
   let activeTab = 'duration';
 
+  // Each tab button → which panel it shows and which season it pulls from.
+  // The 2026-27 tab reuses the Duration Analysis panel with season=2026-27.
+  const TABS = [
+    { id: 'duration',  panel: 'duration',  season: '2025-26' },
+    { id: 'breakdown', panel: 'breakdown', season: '2025-26' },
+    { id: '2026-27',   panel: 'duration',  season: '2026-27' },
+  ];
+  let season = '2025-26';
+
   const PIE_COLORS = [
     '#c1121c','#e85d04','#f48c06','#e9c46a','#2a9d8f',
     '#264653','#6a4c93','#457b9d','#a8dadc','#8ecae6'
   ];
 
-  function switchTab(tab) {
-    activeTab = tab;
+  async function switchTab(tab) {
+    const t = TABS.find(x => x.id === tab);
+    activeTab = t.panel;
     document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-      btn.classList.toggle('active', ['duration','breakdown'][i] === tab);
+      btn.classList.toggle('active', TABS[i].id === tab);
     });
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${t.panel}`).classList.add('active');
+    if (t.season !== season) await loadSeason(t.season);
     update();
+  }
+
+  // Swap the filter dropdowns over to another season's players / games / play types.
+  async function loadSeason(newSeason) {
+    season = newSeason;
+    const opts = await fetch(`/api/filter-options?season=${encodeURIComponent(season)}`).then(r => r.json());
+    const lists = [
+      ['dd-player',      'player',      opts.players],
+      ['dd-play-type',   'play_type',   opts.play_types],
+      ['dd-game',        'game',        opts.games],
+      ['dd-starts-with', 'starts_with', opts.starts_with],
+      ['dd-ends-with',   'ends_with',   opts.ends_with],
+    ];
+    for (const [ddId, filterName, values] of lists) {
+      const dd = document.getElementById(ddId);
+      dd.querySelectorAll('input[value]').forEach(cb => cb.closest('label').remove());
+      for (const v of values) {
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = v;
+        cb.onchange = () => onFilterChange(filterName);
+        label.append(cb, ' ' + v);
+        dd.append(label);
+      }
+    }
+    // Wins/Losses/Conference groups and Returning Players are hardcoded for 2025-26.
+    document.querySelectorAll('.only-2025-26').forEach(el => {
+      el.style.display = season === '2025-26' ? '' : 'none';
+    });
+    resetSelections();
   }
 
   function drawPie(id, data) {
@@ -392,6 +435,15 @@
       : null;
     const wins   = gameData.filter(d => GAME_GROUPS['wins'].includes(d.game)).map(toPoint).filter(Boolean);
     const losses = gameData.filter(d => GAME_GROUPS['losses'].includes(d.game)).map(toPoint).filter(Boolean);
+    // Win/loss lists only exist for 2025-26, so other seasons plot every game in one color.
+    const datasets = season === '2025-26'
+      ? [
+          { label: 'Win',  data: wins,   backgroundColor: 'rgba(34,139,34,0.7)',  pointRadius: 5, pointHoverRadius: 7 },
+          { label: 'Loss', data: losses, backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
+        ]
+      : [
+          { label: 'Game', data: gameData.map(toPoint).filter(Boolean), backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
+        ];
 
     const tooltipLabel = ctx => [
       ` ${ctx.raw.game}`,
@@ -403,10 +455,7 @@
     if (scatterCharts[id]) scatterCharts[id].destroy();
     scatterCharts[id] = new Chart(document.getElementById(id), {
       type: 'scatter',
-      data: { datasets: [
-        { label: 'Win',  data: wins,   backgroundColor: 'rgba(34,139,34,0.7)',  pointRadius: 5, pointHoverRadius: 7 },
-        { label: 'Loss', data: losses, backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
-      ]},
+      data: { datasets },
       options: {
         responsive: true,
         maintainAspectRatio: true,
@@ -555,7 +604,8 @@
     getChecked('dd-game').forEach(v => p.append('game', v));
     getChecked('dd-starts-with').forEach(v => p.append('starts_with', v));
     getChecked('dd-ends-with').forEach(v => p.append('ends_with', v));
-    return p.toString() ? '?' + p : '';
+    p.append('season', season);
+    return '?' + p;
   }
 
   async function update() {
@@ -627,6 +677,11 @@
   }
 
   function reset() {
+    resetSelections();
+    update();
+  }
+
+  function resetSelections() {
     document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
     activeGameGroups.clear();
     updateLabel('lbl-bucket',    [], 'All Buckets');
@@ -636,7 +691,6 @@
     updateLabel('lbl-game',        [], 'All Games');
     updateLabel('lbl-starts-with', [], 'All Players');
     updateLabel('lbl-ends-with',   [], 'All Players');
-    update();
   }
 
   update();

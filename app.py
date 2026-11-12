@@ -13,17 +13,23 @@ def get_filters():
         "starts_with": request.args.getlist("starts_with") or None,
         "ends_with":   request.args.getlist("ends_with") or None,
         "bucket":      request.args.getlist("bucket") or None,
+        "season":      request.args.get("season") or queries.DEFAULT_SEASON,
     }
 
 
-def get_filter_options():
+def get_filter_options(season=queries.DEFAULT_SEASON):
     conn = sqlite3.connect(queries.DB)
     cur = conn.cursor()
-    players      = queries.get_players_from_descriptions()
-    play_types   = [r[0] for r in cur.execute("SELECT DISTINCT play_type   FROM possessions ORDER BY play_type").fetchall()]
-    games        = [r[0] for r in cur.execute("SELECT DISTINCT game        FROM possessions ORDER BY date").fetchall()]
-    starts_with  = [r[0] for r in cur.execute("SELECT DISTINCT starts_with FROM possessions ORDER BY starts_with").fetchall()]
-    ends_with    = [r[0] for r in cur.execute("SELECT DISTINCT player      FROM possessions ORDER BY player").fetchall()]
+    def distinct(col, order):
+        sql = f"SELECT DISTINCT {col} FROM possessions WHERE season = ? ORDER BY {order}"
+        return [r[0] for r in cur.execute(sql, (season,)).fetchall()]
+    players      = queries.get_players_from_descriptions(season)
+    play_types   = distinct("play_type", "play_type")
+    # Games ordered by their date (DISTINCT + ORDER BY a non-selected column is ambiguous)
+    games        = [r[0] for r in cur.execute(
+        "SELECT game FROM possessions WHERE season = ? GROUP BY game ORDER BY MIN(date)", (season,)).fetchall()]
+    starts_with  = distinct("starts_with", "starts_with")
+    ends_with    = distinct("player", "player")
     conn.close()
     return {"players": players, "play_types": play_types, "games": games, "starts_with": starts_with, "ends_with": ends_with}
 
@@ -32,6 +38,11 @@ def get_filter_options():
 def index():
     options = get_filter_options()
     return render_template("index.html", **options)
+
+
+@app.route("/api/filter-options")
+def api_filter_options():
+    return jsonify(get_filter_options(request.args.get("season") or queries.DEFAULT_SEASON))
 
 
 @app.route("/api/turnover-rate")

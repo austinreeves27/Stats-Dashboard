@@ -2,6 +2,27 @@ import sqlite3
 import re
 
 DB = "possessions.db"
+DEFAULT_SEASON = "2025-26"
+
+# ── Result scoring (shared by every query) ────────────────────────────────────
+# 2025-26 labels: 'Make 2 Pts + 1 Pts' = and-one, plain 'Foul' = 0 pts.
+# 2026-27 labels: '2pts + 1 Pt' = and-one, 'Foul + 2pts' = foul with 2 FTs made.
+# Foul + FT rows add points (PPP) but are NOT field goal attempts (FG%).
+POINTS = {
+    "Make 2 Pts": 2, "Make 3 Pts": 3,
+    "Make 2 Pts + 0 Pts": 2, "Make 2 Pts + 1 Pts": 3, "Make 3 Pts + 1 Pts": 4,
+    "2pts + 0 Pts": 2, "2pts + 1 Pt": 3, "3pts + 0 Pts": 3, "3pts + 1 Pt": 4,
+    "Foul + 1pt": 1, "Foul + 2pts": 2, "Foul + 3pts": 3,
+}
+FG_MAKES  = [r for r in POINTS if not r.startswith("Foul")]
+FG_MISSES = ["Miss 2 Pts", "Miss 3 Pts"]
+
+def _sql_list(values):
+    return ", ".join(f"'{v}'" for v in values)
+
+MAKES_SQL  = _sql_list(FG_MAKES)
+FGA_SQL    = _sql_list(FG_MAKES + FG_MISSES)
+POINTS_SQL = "CASE " + " ".join(f"WHEN result = '{r}' THEN {p}" for r, p in POINTS.items()) + " ELSE 0 END"
 
 
 def get_db():
@@ -10,11 +31,11 @@ def get_db():
     return conn
 
 
-def get_players_from_descriptions():
+def get_players_from_descriptions(season=DEFAULT_SEASON):
     """Parse all unique player names that appear anywhere in the description column."""
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT DISTINCT description FROM possessions")
+    cur.execute("SELECT DISTINCT description FROM possessions WHERE season = ?", (season,))
     names = set()
     for (desc,) in cur.fetchall():
         for seg in desc.split(' > '):
@@ -32,8 +53,8 @@ def build_where(filters):
     Each filter value can be a single string or a list of strings.
     Player filter matches any player mentioned anywhere in the description.
     """
-    conditions = []
-    params = []
+    conditions = ["season = ?"]
+    params = [filters.get("season") or DEFAULT_SEASON]
 
     # Player filter: match any player mentioned in the description
     player_values = filters.get("player")
@@ -62,8 +83,8 @@ def build_where(filters):
 
 def build_where_no_game(filters):
     """Same as build_where but ignores the game filter (used for per-game scatter)."""
-    conditions = []
-    params = []
+    conditions = ["season = ?"]
+    params = [filters.get("season") or DEFAULT_SEASON]
 
     player_values = filters.get("player")
     if player_values:
@@ -98,11 +119,9 @@ def game_scatter(filters):
             game,
             AVG(duration) as avg_duration,
             100.0 * SUM(CASE WHEN result = 'Turnover' THEN 1 ELSE 0 END) / COUNT(*) as turnover_rate,
-            100.0 * SUM(CASE WHEN result IN ('Make 2 Pts','Make 3 Pts','Make 2 Pts + 1 Pts','Make 3 Pts + 1 Pts','Make 2 Pts + 0 Pts') THEN 1 ELSE 0 END)
-                / NULLIF(SUM(CASE WHEN result IN ('Make 2 Pts','Make 3 Pts','Make 2 Pts + 1 Pts','Make 3 Pts + 1 Pts','Make 2 Pts + 0 Pts','Miss 2 Pts','Miss 3 Pts') THEN 1 ELSE 0 END), 0) as fg_pct,
-            1.0 * SUM(CASE WHEN result = 'Make 2 Pts' THEN 2 WHEN result = 'Make 3 Pts' THEN 3
-                           WHEN result = 'Make 2 Pts + 1 Pts' THEN 3 WHEN result = 'Make 3 Pts + 1 Pts' THEN 4
-                           WHEN result = 'Make 2 Pts + 0 Pts' THEN 2 ELSE 0 END) / COUNT(*) as ppp,
+            100.0 * SUM(CASE WHEN result IN ({MAKES_SQL}) THEN 1 ELSE 0 END)
+                / NULLIF(SUM(CASE WHEN result IN ({FGA_SQL}) THEN 1 ELSE 0 END), 0) as fg_pct,
+            1.0 * SUM({POINTS_SQL}) / COUNT(*) as ppp,
             COUNT(*) as count
         FROM possessions {where}
         GROUP BY game
@@ -204,7 +223,7 @@ def fg_pct_by_duration(filters):
     cur = conn.cursor()
 
     # TODO: write your SQL here
-    cur.execute(f"SELECT bucket, COUNT(*) as count, SUM(CASE WHEN result IN ('Make 2 Pts', 'Make 3 Pts', 'Make 2 Pts + 1 Pts', 'Make 3 Pts + 1 Pts', 'Make 2 Pts + 0 Pts') THEN 1 ELSE 0 END) as makes, 100.0 * SUM(CASE WHEN result IN ('Make 2 Pts', 'Make 3 Pts', 'Make 2 Pts + 1 Pts', 'Make 3 Pts + 1 Pts', 'Make 2 Pts + 0 Pts') THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN result IN ('Make 2 Pts', 'Make 3 Pts', 'Make 2 Pts + 1 Pts', 'Make 3 Pts + 1 Pts', 'Make 2 Pts + 0 Pts', 'Miss 2 Pts', 'Miss 3 Pts') THEN 1 ELSE 0 END), 0) as fg_pct FROM possessions {where} GROUP BY bucket", params)
+    cur.execute(f"SELECT bucket, COUNT(*) as count, SUM(CASE WHEN result IN ({MAKES_SQL}) THEN 1 ELSE 0 END) as makes, 100.0 * SUM(CASE WHEN result IN ({MAKES_SQL}) THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN result IN ({FGA_SQL}) THEN 1 ELSE 0 END), 0) as fg_pct FROM possessions {where} GROUP BY bucket", params)
     rows = cur.fetchall()
     conn.close()
     return [{"bucket": row["bucket"], "fg_pct": row["fg_pct"], "count": row["count"], "makes": row["makes"]} for row in rows]
@@ -222,7 +241,7 @@ def ppp_by_duration(filters):
     cur = conn.cursor()
 
     # TODO: write your SQL here
-    cur.execute(f"SELECT bucket, COUNT(*) as count, SUM(CASE WHEN result = 'Make 2 Pts' THEN 2 WHEN result = 'Make 3 Pts' THEN 3 WHEN result = 'Make 2 Pts + 1 Pts' THEN 3 WHEN result = 'Make 3 Pts + 1 Pts' THEN 4 WHEN result = 'Make 2 Pts + 0 Pts' THEN 2 ELSE 0 END) as total_points, 1.0 * SUM(CASE WHEN result = 'Make 2 Pts' THEN 2 WHEN result = 'Make 3 Pts' THEN 3 WHEN result = 'Make 2 Pts + 1 Pts' THEN 3 WHEN result = 'Make 3 Pts + 1 Pts' THEN 4 WHEN result = 'Make 2 Pts + 0 Pts' THEN 2 ELSE 0 END) / COUNT(*) as ppp FROM possessions {where} GROUP BY bucket", params)
+    cur.execute(f"SELECT bucket, COUNT(*) as count, SUM({POINTS_SQL}) as total_points, 1.0 * SUM({POINTS_SQL}) / COUNT(*) as ppp FROM possessions {where} GROUP BY bucket", params)
     rows = cur.fetchall()
     conn.close()
     return [{"bucket": row["bucket"], "ppp": row["ppp"], "count": row["count"], "total_points": row["total_points"]} for row in rows]
