@@ -236,6 +236,21 @@
       {% endfor %}
     </div>
   </div>
+  <div class="filter-group only-2026-27" style="display:none">
+    <span class="filter-label">Play Result</span>
+    <button class="filter-btn" onclick="toggleDropdown('dd-result')">
+      <span id="lbl-result">All Results</span><span class="arrow">&#9660;</span>
+    </button>
+    <div class="dropdown" id="dd-result">
+      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-result','result',this)"> Select All</label>
+      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('2pt',this)"> All 2PT</label>
+      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('3pt',this)"> All 3PT</label>
+      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('foul',this)"> All Fouls</label>
+      {% for r in results %}
+      <label><input type="checkbox" value="{{ r }}" onchange="onFilterChange('result')"> {{ r }}</label>
+      {% endfor %}
+    </div>
+  </div>
   <button class="reset-btn" onclick="reset()">Reset</button>
 </div>
 
@@ -374,6 +389,7 @@
       ['dd-game',        'game',        opts.games],
       ['dd-starts-with', 'starts_with', opts.starts_with],
       ['dd-ends-with',   'ends_with',   opts.ends_with],
+      ['dd-result',      'result',      opts.results],
     ];
     for (const [ddId, filterName, values] of lists) {
       const dd = document.getElementById(ddId);
@@ -391,6 +407,10 @@
     // Wins/Losses/Conference groups and Returning Players are hardcoded for 2025-26.
     document.querySelectorAll('.only-2025-26').forEach(el => {
       el.style.display = season === '2025-26' ? '' : 'none';
+    });
+    // The Play Result filter is only on the 2026-27 tab.
+    document.querySelectorAll('.only-2026-27').forEach(el => {
+      el.style.display = season === '2026-27' ? '' : 'none';
     });
     resetSelections();
   }
@@ -532,7 +552,8 @@
   });
 
   function getChecked(ddId) {
-    return [...document.querySelectorAll(`#${ddId} input:checked`)].map(el => el.value).filter(v => v);
+    // Only real options have a value attribute; shortcut boxes (Select All, Wins, All 2PT...) don't.
+    return [...document.querySelectorAll(`#${ddId} input[value]:checked`)].map(el => el.value);
   }
 
   const RETURNING = ['Alba Martín', 'Dorja Iva Zaja', 'Kyrah Daniels', 'Laci Steele', 'Nikki Kerstein', 'Shay Bollin'];
@@ -566,6 +587,21 @@
       if (games.includes(cb.value)) cb.checked = checkbox.checked;
     });
     onFilterChange('game');
+  }
+
+  // Play Result shortcuts: each pattern matches every label in that group,
+  // e.g. 2PT = 'Make 2 Pts', 'Miss 2 Pts', '2pts + 0 Pts', '2pts + 1 Pt'.
+  const RESULT_GROUPS = {
+    '2pt':  /^(Make|Miss) 2 Pts|^2pts/i,
+    '3pt':  /^(Make|Miss) 3 Pts|^3pts/i,
+    'foul': /^Foul/i,
+  };
+
+  function selectResultGroup(group, checkbox) {
+    document.querySelectorAll('#dd-result input[value]').forEach(cb => {
+      if (RESULT_GROUPS[group].test(cb.value)) cb.checked = checkbox.checked;
+    });
+    onFilterChange('result');
   }
 
   function selectReturning(checkbox) {
@@ -603,7 +639,8 @@
                   play_type: ['dd-play-type', 'lbl-play-type', 'All Play Types'],
                   game: ['dd-game', 'lbl-game', 'All Games'],
                   starts_with: ['dd-starts-with', 'lbl-starts-with', 'All Players'],
-                  ends_with: ['dd-ends-with', 'lbl-ends-with', 'All Players'] };
+                  ends_with: ['dd-ends-with', 'lbl-ends-with', 'All Players'],
+                  result: ['dd-result', 'lbl-result', 'All Results'] };
     const [ddId, lblId, def] = map[filterName];
     updateLabel(lblId, getChecked(ddId), def);
     update();
@@ -616,6 +653,7 @@
     getChecked('dd-game').forEach(v => p.append('game', v));
     getChecked('dd-starts-with').forEach(v => p.append('starts_with', v));
     getChecked('dd-ends-with').forEach(v => p.append('ends_with', v));
+    getChecked('dd-result').forEach(v => p.append('result', v));
     p.append('season', season);
     return '?' + p;
   }
@@ -703,6 +741,7 @@
     updateLabel('lbl-game',        [], 'All Games');
     updateLabel('lbl-starts-with', [], 'All Players');
     updateLabel('lbl-ends-with',   [], 'All Players');
+    updateLabel('lbl-result',      [], 'All Results');
   }
 
   update();

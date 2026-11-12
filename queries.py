@@ -65,7 +65,7 @@ def build_where(filters):
         conditions.append("(" + " OR ".join(like_clauses) + ")")
         params.extend(f"%{p}%" for p in player_values)
 
-    for key, col in [("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with"), ("ends_with", "player"), ("bucket", "bucket")]:
+    for key, col in [("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with"), ("ends_with", "player"), ("bucket", "bucket"), ("result", "result")]:
         values = filters.get(key)
         if not values:
             continue
@@ -94,7 +94,7 @@ def build_where_no_game(filters):
         conditions.append("(" + " OR ".join(like_clauses) + ")")
         params.extend(f"%{p}%" for p in player_values)
 
-    for key, col in [("play_type", "play_type"), ("starts_with", "starts_with"), ("ends_with", "player")]:
+    for key, col in [("play_type", "play_type"), ("starts_with", "starts_with"), ("ends_with", "player"), ("result", "result")]:
         values = filters.get(key)
         if not values:
             continue
