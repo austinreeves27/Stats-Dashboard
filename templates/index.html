@@ -242,13 +242,10 @@
       <span id="lbl-result">All Results</span><span class="arrow">&#9660;</span>
     </button>
     <div class="dropdown" id="dd-result">
-      <label class="select-all"><input type="checkbox" onchange="selectAll('dd-result','result',this)"> Select All</label>
-      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('2pt',this)"> All 2PT</label>
-      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('3pt',this)"> All 3PT</label>
-      <label class="select-all"><input type="checkbox" onchange="selectResultGroup('foul',this)"> All Fouls</label>
-      {% for r in results %}
-      <label><input type="checkbox" value="{{ r }}" onchange="onFilterChange('result')"> {{ r }}</label>
-      {% endfor %}
+      <!-- 2PT = makes, misses and and-ones; Fouls = foul + free throw rows -->
+      <label><input type="checkbox" value="2pt"  onchange="onFilterChange('result')"> All 2PT</label>
+      <label><input type="checkbox" value="3pt"  onchange="onFilterChange('result')"> All 3PT</label>
+      <label><input type="checkbox" value="foul" onchange="onFilterChange('result')"> All Fouls</label>
     </div>
   </div>
   <button class="reset-btn" onclick="reset()">Reset</button>
@@ -389,7 +386,6 @@
       ['dd-game',        'game',        opts.games],
       ['dd-starts-with', 'starts_with', opts.starts_with],
       ['dd-ends-with',   'ends_with',   opts.ends_with],
-      ['dd-result',      'result',      opts.results],
     ];
     for (const [ddId, filterName, values] of lists) {
       const dd = document.getElementById(ddId);
@@ -589,21 +585,6 @@
     onFilterChange('game');
   }
 
-  // Play Result shortcuts: each pattern matches every label in that group,
-  // e.g. 2PT = 'Make 2 Pts', 'Miss 2 Pts', '2pts + 0 Pts', '2pts + 1 Pt'.
-  const RESULT_GROUPS = {
-    '2pt':  /^(Make|Miss) 2 Pts|^2pts/i,
-    '3pt':  /^(Make|Miss) 3 Pts|^3pts/i,
-    'foul': /^Foul/i,
-  };
-
-  function selectResultGroup(group, checkbox) {
-    document.querySelectorAll('#dd-result input[value]').forEach(cb => {
-      if (RESULT_GROUPS[group].test(cb.value)) cb.checked = checkbox.checked;
-    });
-    onFilterChange('result');
-  }
-
   function selectReturning(checkbox) {
     document.querySelectorAll('#dd-player input[value]').forEach(cb => {
       cb.checked = checkbox.checked && RETURNING.includes(cb.value);
@@ -653,7 +634,7 @@
     getChecked('dd-game').forEach(v => p.append('game', v));
     getChecked('dd-starts-with').forEach(v => p.append('starts_with', v));
     getChecked('dd-ends-with').forEach(v => p.append('ends_with', v));
-    getChecked('dd-result').forEach(v => p.append('result', v));
+    getChecked('dd-result').forEach(v => p.append('result_group', v));
     p.append('season', season);
     return '?' + p;
   }

@@ -20,6 +20,20 @@ FG_MISSES = ["Miss 2 Pts", "Miss 3 Pts"]
 def _sql_list(values):
     return ", ".join(f"'{v}'" for v in values)
 
+# Play Result filter groups (match both seasons' labels; SQLite LIKE ignores case).
+RESULT_GROUP_SQL = {
+    "2pt":  "(result LIKE 'Make 2 Pts%' OR result LIKE 'Miss 2 Pts%' OR result LIKE '2pts%')",
+    "3pt":  "(result LIKE 'Make 3 Pts%' OR result LIKE 'Miss 3 Pts%' OR result LIKE '3pts%')",
+    "foul": "result LIKE 'Foul%'",
+}
+
+
+def add_result_group(filters, conditions):
+    """Picking several groups (e.g. 2PT + 3PT) shows possessions in any of them."""
+    picked = [RESULT_GROUP_SQL[g] for g in (filters.get("result_group") or []) if g in RESULT_GROUP_SQL]
+    if picked:
+        conditions.append("(" + " OR ".join(picked) + ")")
+
 MAKES_SQL  = _sql_list(FG_MAKES)
 FGA_SQL    = _sql_list(FG_MAKES + FG_MISSES)
 POINTS_SQL = "CASE " + " ".join(f"WHEN result = '{r}' THEN {p}" for r, p in POINTS.items()) + " ELSE 0 END"
@@ -65,7 +79,7 @@ def build_where(filters):
         conditions.append("(" + " OR ".join(like_clauses) + ")")
         params.extend(f"%{p}%" for p in player_values)
 
-    for key, col in [("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with"), ("ends_with", "player"), ("bucket", "bucket"), ("result", "result")]:
+    for key, col in [("play_type", "play_type"), ("game", "game"), ("starts_with", "starts_with"), ("ends_with", "player"), ("bucket", "bucket")]:
         values = filters.get(key)
         if not values:
             continue
@@ -77,6 +91,7 @@ def build_where(filters):
             conditions.append(f"{col} = ?")
             params.append(values)
 
+    add_result_group(filters, conditions)
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     return where, params
 
@@ -94,7 +109,7 @@ def build_where_no_game(filters):
         conditions.append("(" + " OR ".join(like_clauses) + ")")
         params.extend(f"%{p}%" for p in player_values)
 
-    for key, col in [("play_type", "play_type"), ("starts_with", "starts_with"), ("ends_with", "player"), ("result", "result")]:
+    for key, col in [("play_type", "play_type"), ("starts_with", "starts_with"), ("ends_with", "player")]:
         values = filters.get(key)
         if not values:
             continue
@@ -105,6 +120,7 @@ def build_where_no_game(filters):
         else:
             conditions.append(f"{col} = ?")
             params.append(values)
+    add_result_group(filters, conditions)
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     return where, params
 

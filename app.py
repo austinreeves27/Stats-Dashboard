@@ -13,7 +13,7 @@ def get_filters():
         "starts_with": request.args.getlist("starts_with") or None,
         "ends_with":   request.args.getlist("ends_with") or None,
         "bucket":      request.args.getlist("bucket") or None,
-        "result":      request.args.getlist("result") or None,
+        "result_group": request.args.getlist("result_group") or None,
         "season":      request.args.get("season") or queries.DEFAULT_SEASON,
     }
 
@@ -31,9 +31,8 @@ def get_filter_options(season=queries.DEFAULT_SEASON):
         "SELECT game FROM possessions WHERE season = ? GROUP BY game ORDER BY MIN(date)", (season,)).fetchall()]
     starts_with  = distinct("starts_with", "starts_with")
     ends_with    = distinct("player", "player")
-    results      = distinct("result", "result")
     conn.close()
-    return {"players": players, "play_types": play_types, "games": games, "starts_with": starts_with, "ends_with": ends_with, "results": results}
+    return {"players": players, "play_types": play_types, "games": games, "starts_with": starts_with, "ends_with": ends_with}
 
 
 @app.route("/")
