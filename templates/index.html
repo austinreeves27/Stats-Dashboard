@@ -433,17 +433,18 @@
     const toPoint = d => d[yKey] != null
       ? { x: +d.avg_duration.toFixed(2), y: +d[yKey].toFixed(2), game: d.game, count: d.count }
       : null;
-    const wins   = gameData.filter(d => GAME_GROUPS['wins'].includes(d.game)).map(toPoint).filter(Boolean);
-    const losses = gameData.filter(d => GAME_GROUPS['losses'].includes(d.game)).map(toPoint).filter(Boolean);
-    // Win/loss lists only exist for 2025-26, so other seasons plot every game in one color.
-    const datasets = season === '2025-26'
-      ? [
-          { label: 'Win',  data: wins,   backgroundColor: 'rgba(34,139,34,0.7)',  pointRadius: 5, pointHoverRadius: 7 },
-          { label: 'Loss', data: losses, backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
-        ]
-      : [
-          { label: 'Game', data: gameData.map(toPoint).filter(Boolean), backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
-        ];
+    const { wins: winGames, losses: lossGames } = gameGroups();
+    const wins   = gameData.filter(d => winGames.includes(d.game)).map(toPoint).filter(Boolean);
+    const losses = gameData.filter(d => lossGames.includes(d.game)).map(toPoint).filter(Boolean);
+    // Games not yet listed as a win or loss still show up, in gray.
+    const noResult = gameData.filter(d => !winGames.includes(d.game) && !lossGames.includes(d.game)).map(toPoint).filter(Boolean);
+    const datasets = [
+      { label: 'Win',  data: wins,   backgroundColor: 'rgba(34,139,34,0.7)',  pointRadius: 5, pointHoverRadius: 7 },
+      { label: 'Loss', data: losses, backgroundColor: 'rgba(193,18,28,0.7)', pointRadius: 5, pointHoverRadius: 7 },
+    ];
+    if (noResult.length) {
+      datasets.push({ label: 'No result', data: noResult, backgroundColor: 'rgba(150,150,150,0.7)', pointRadius: 5, pointHoverRadius: 7 });
+    }
 
     const tooltipLabel = ctx => [
       ` ${ctx.raw.game}`,
@@ -536,20 +537,31 @@
 
   const RETURNING = ['Alba Martín', 'Dorja Iva Zaja', 'Kyrah Daniels', 'Laci Steele', 'Nikki Kerstein', 'Shay Bollin'];
 
-  const GAME_GROUPS = {
-    'wins':           ['Oakland@Wisconsin','UWMilwaukee@Wisconsin','BowlingGreen@Wisconsin','UWGreenBay@Wisconsin','Wisconsin@IllinoisChicago','Detroit@Wisconsin','MichiganState@Wisconsin','SanDiego@Wisconsin','IU-Indy@Wisconsin','Wisconsin@Rutgers','PennState@Wisconsin','Oregon@Wisconsin','Nebraska@Wisconsin','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin'],
+  // Game groups per season. Add each new 2026-27 game to wins or losses.
+  const GAME_GROUPS_BY_SEASON = {
+   '2025-26': {
+    'wins':          ['Oakland@Wisconsin','UWMilwaukee@Wisconsin','BowlingGreen@Wisconsin','UWGreenBay@Wisconsin','Wisconsin@IllinoisChicago','Detroit@Wisconsin','MichiganState@Wisconsin','SanDiego@Wisconsin','IU-Indy@Wisconsin','Wisconsin@Rutgers','PennState@Wisconsin','Oregon@Wisconsin','Nebraska@Wisconsin','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin'],
     'losses':         ['Wisconsin@Marquette','Wisconsin@Mississippi','JamesMadison@Wisconsin','Wisconsin@Maryland','Purdue@Wisconsin','Wisconsin@Michigan','Wisconsin@Northwestern','Minnesota@Wisconsin','Wisconsin@Minnesota','Wisconsin@OhioState','Indiana@Wisconsin','Washington@Wisconsin','Wisconsin@Illinois','Wisconsin@USC','Wisconsin@UCLA','Iowa@Wisconsin','Wisconsin@Illinois (Tournament)','Columbia@Wisconsin'],
     'non-conference': ['Oakland@Wisconsin','Wisconsin@Marquette','UWMilwaukee@Wisconsin','BowlingGreen@Wisconsin','UWGreenBay@Wisconsin','Wisconsin@IllinoisChicago','Detroit@Wisconsin','Wisconsin@Mississippi','JamesMadison@Wisconsin','SanDiego@Wisconsin','IU-Indy@Wisconsin'],
     'conference':     ['MichiganState@Wisconsin','Wisconsin@Maryland','Wisconsin@Rutgers','PennState@Wisconsin','Purdue@Wisconsin','Wisconsin@Michigan','Wisconsin@Northwestern','Oregon@Wisconsin','Nebraska@Wisconsin','Minnesota@Wisconsin','Wisconsin@Minnesota','Wisconsin@OhioState','Indiana@Wisconsin','Washington@Wisconsin','Wisconsin@Illinois','Wisconsin@USC','Wisconsin@UCLA','Iowa@Wisconsin'],
     'postseason':     ['Wisconsin@Illinois (Tournament)','Wisconsin@OregonState','Wisconsin@MiamiFL','Harvard@Wisconsin','Columbia@Wisconsin'],
+   },
+   '2026-27': {
+    'wins':           ['Bradley@Wisconsin','Oakland@Wisconsin','GramblingState@Wisconsin','Delaware@Wisconsin'],
+    'losses':         [],
+    'non-conference': [],
+    'conference':     [],
+    'postseason':     [],
+   },
   };
+  const gameGroups = () => GAME_GROUPS_BY_SEASON[season];
 
   const activeGameGroups = new Set();
 
   function selectGameGroup(group, checkbox) {
     if (checkbox.checked) activeGameGroups.add(group);
     else activeGameGroups.delete(group);
-    const games = GAME_GROUPS[group];
+    const games = gameGroups()[group];
     document.querySelectorAll('#dd-game input[value]').forEach(cb => {
       if (games.includes(cb.value)) cb.checked = checkbox.checked;
     });
