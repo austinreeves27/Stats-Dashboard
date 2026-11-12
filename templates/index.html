@@ -91,6 +91,8 @@
     .scatter-wrap { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
     .scatter-wrap h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; margin-bottom: 10px; }
     .scatter-wrap canvas { max-height: 200px; }
+    .scatter-avg { font-size: 0.78rem; color: #888; margin: -4px 0 8px; }
+    .scatter-avg b { color: #c1121c; }
 
     .table-section {
       padding: 0 28px 32px;
@@ -259,6 +261,7 @@
       <canvas id="chart-to"></canvas>
       <div class="scatter-wrap" id="swrap-to">
         <h3>Avg Duration vs Turnover Rate — by Game</h3>
+        <div class="scatter-avg">Avg duration, all games: <b class="overall-avg"></b></div>
         <canvas id="scatter-to"></canvas>
       </div>
     </div>
@@ -267,6 +270,7 @@
       <canvas id="chart-fg"></canvas>
       <div class="scatter-wrap" id="swrap-fg">
         <h3>Avg Duration vs FG% — by Game</h3>
+        <div class="scatter-avg">Avg duration, all games: <b class="overall-avg"></b></div>
         <canvas id="scatter-fg"></canvas>
       </div>
     </div>
@@ -275,6 +279,7 @@
       <canvas id="chart-ppp"></canvas>
       <div class="scatter-wrap" id="swrap-ppp">
         <h3>Avg Duration vs PPP — by Game</h3>
+        <div class="scatter-avg">Avg duration, all games: <b class="overall-avg"></b></div>
         <canvas id="scatter-ppp"></canvas>
       </div>
     </div>
@@ -665,6 +670,12 @@
       drawChart('chart-to',  toData,  'turnover_rate', true,  'Turnover Rate (%)', 'turnovers',    'Turnovers',       100);
       drawChart('chart-fg',  fgData,  'fg_pct',        false, 'FG% (%)',           'makes',        'Field Goals Made', 100);
       drawChart('chart-ppp', pppData, 'ppp',           false, 'PPP',               'total_points', 'Total Points',     2);
+
+      // Overall avg duration across every possession that matches the filters
+      const avgDur = tableData.length ? tableData.reduce((s, r) => s + r.duration, 0) / tableData.length : null;
+      document.querySelectorAll('.overall-avg').forEach(el => {
+        el.textContent = avgDur == null ? '—' : `${avgDur.toFixed(1)}s`;
+      });
 
       document.getElementById('table-count').textContent = `${tableData.length} possessions`;
       const tbody = document.getElementById('possession-tbody');
