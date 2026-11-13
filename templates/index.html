@@ -668,6 +668,34 @@
   // needs to be fetched once per season.
   const paceCache = {};
   let paceChart = null;
+  // Big Ten avg possessions per game, 2026-27 (ESPN team stats, checked Nov 13, 2026).
+  // Counted like our Synergy rows (offensive rebound = new possession):
+  //   FGA + TO + 0.44 * FTA  =  64.4 + 14.4 + 0.44 * 20.8  =  88.0
+  // Early season (2-4 games per team), so update it as the season goes on.
+  const BIG_TEN_AVG_POSSESSIONS = 88.0;
+
+  // Draws a dashed vertical reference line at the Big Ten average.
+  const bigTenLinePlugin = {
+    id: 'bigTenLine',
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+      const px = x.getPixelForValue(BIG_TEN_AVG_POSSESSIONS);
+      ctx.save();
+      ctx.strokeStyle = '#1d3557';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, top);
+      ctx.lineTo(px, bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#1d3557';
+      ctx.font = '600 11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`Big Ten avg: ${BIG_TEN_AVG_POSSESSIONS}`, px + 6, top + 12);
+      ctx.restore();
+    }
+  };
 
   async function drawPaceChart() {
     if (!paceCache[season]) {
@@ -683,11 +711,13 @@
     ];
     const noResult = games.filter(g => !winGames.includes(g.game) && !lossGames.includes(g.game)).map(toPoint);
     if (noResult.length) datasets.push({ label: 'No result', data: noResult, backgroundColor: 'rgba(150,150,150,0.7)', ...style });
+    const allX = [...games.map(g => g.possessions), BIG_TEN_AVG_POSSESSIONS];
 
     if (paceChart) paceChart.destroy();
     paceChart = new Chart(document.getElementById('chart-pace'), {
       type: 'scatter',
       data: { datasets },
+      plugins: [bigTenLinePlugin],
       options: {
         responsive: true,
         maintainAspectRatio: true,
@@ -703,8 +733,8 @@
         scales: {
           // A couple of possessions of padding so edge dots aren't cut off
           x: { grid: { color: '#f0f0f0' }, title: { display: true, text: 'Total Possessions in Game' },
-               suggestedMin: Math.min(...games.map(g => g.possessions)) - 2,
-               suggestedMax: Math.max(...games.map(g => g.possessions)) + 2,
+               suggestedMin: Math.min(...allX) - 2,
+               suggestedMax: Math.max(...allX) + 2,
                ticks: { precision: 0 } },
           y: { grid: { color: '#f0f0f0' }, title: { display: true, text: 'Avg Possession Duration (seconds)' } }
         }
