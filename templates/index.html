@@ -101,7 +101,13 @@
       font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em; color: #888; margin-bottom: 12px;
     }
-    .table-count { font-size: 0.8rem; color: #aaa; margin-bottom: 10px; }
+    .table-count { font-size: 0.8rem; color: #aaa; }
+    .table-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+    .table-search { border: 1px solid #ddd; border-radius: 6px; padding: 7px 12px; font-size: 0.85rem; width: 300px; max-width: 100%; }
+    .table-search:focus { outline: 2px solid #c1121c; border-color: transparent; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #444; }
+    th.sorted { color: #c1121c; }
     .table-wrap { overflow: auto; max-height: 480px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
     thead th { position: sticky; top: 0; z-index: 1; }
     table { width: 100%; border-collapse: collapse; background: white; font-size: 0.82rem; }
@@ -287,18 +293,21 @@
 
   <div class="table-section">
     <h2>Possession Data</h2>
-    <div class="table-count" id="table-count"></div>
+    <div class="table-tools">
+      <input type="search" id="table-search" class="table-search" placeholder="Search plays (player, play type, result…)" oninput="renderTable()">
+      <div class="table-count" id="table-count"></div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Game</th>
-            <th>Date</th>
-            <th>Starts With</th>
-            <th>Ends With</th>
-            <th>Play Type</th>
-            <th>Duration</th>
-            <th>Result</th>
+            <th class="sortable" data-key="game"        onclick="sortTable('game')">Game<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="date"        onclick="sortTable('date')">Date<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="starts_with" onclick="sortTable('starts_with')">Starts With<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="player"      onclick="sortTable('player')">Ends With<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="play_type"   onclick="sortTable('play_type')">Play Type<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="duration"    onclick="sortTable('duration')">Duration<span class="sort-arrow"></span></th>
+            <th class="sortable" data-key="result"      onclick="sortTable('result')">Result<span class="sort-arrow"></span></th>
             <th>Description</th>
           </tr>
         </thead>
@@ -646,6 +655,57 @@
     return '?' + p;
   }
 
+  // ── Possession table: sort + search ─────────────────────────────────────────
+  let tableRows = [];                         // rows from the server, in game order
+  let tableSort = { key: null, dir: 'asc' };  // key null = default game order
+
+  // Click a header: ascending → descending → back to game order.
+  function sortTable(key) {
+    if (tableSort.key !== key)       tableSort = { key, dir: 'asc' };
+    else if (tableSort.dir === 'asc') tableSort.dir = 'desc';
+    else                              tableSort = { key: null, dir: 'asc' };
+    renderTable();
+  }
+
+  function renderTable() {
+    const q = document.getElementById('table-search').value.trim().toLowerCase();
+    let rows = q
+      ? tableRows.filter(r => [r.game, r.date, r.starts_with, r.player, r.play_type, r.result, r.description]
+          .some(v => String(v ?? '').toLowerCase().includes(q)))
+      : tableRows.slice();
+
+    if (tableSort.key) {
+      const { key, dir } = tableSort;
+      const sign = dir === 'asc' ? 1 : -1;
+      rows.sort((a, b) => {
+        const x = a[key], y = b[key];
+        const cmp = typeof x === 'number' ? x - y : String(x ?? '').localeCompare(String(y ?? ''));
+        return cmp * sign;
+      });
+    }
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+      const active = th.dataset.key === tableSort.key;
+      th.classList.toggle('sorted', active);
+      th.querySelector('.sort-arrow').textContent = active ? (tableSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    });
+
+    document.getElementById('table-count').textContent =
+      q ? `${rows.length} of ${tableRows.length} possessions` : `${rows.length} possessions`;
+
+    document.getElementById('possession-tbody').innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.game}</td>
+        <td>${r.date}</td>
+        <td>${r.starts_with}</td>
+        <td>${r.player}</td>
+        <td>${r.play_type}</td>
+        <td class="num">${r.duration.toFixed(1)}s</td>
+        <td>${r.result}</td>
+        <td class="desc">${r.description}</td>
+      </tr>`).join('');
+  }
+
   async function update() {
     const qs = getParams();
 
@@ -677,19 +737,8 @@
         el.textContent = avgDur == null ? '—' : `${avgDur.toFixed(1)}s`;
       });
 
-      document.getElementById('table-count').textContent = `${tableData.length} possessions`;
-      const tbody = document.getElementById('possession-tbody');
-      tbody.innerHTML = tableData.map(r => `
-        <tr>
-          <td>${r.game}</td>
-          <td>${r.date}</td>
-          <td>${r.starts_with}</td>
-          <td>${r.player}</td>
-          <td>${r.play_type}</td>
-          <td class="num">${r.duration.toFixed(1)}s</td>
-          <td>${r.result}</td>
-          <td class="desc">${r.description}</td>
-        </tr>`).join('');
+      tableRows = tableData;
+      renderTable();
 
       if (!hideScatter && gameData) {
         drawGameScatter('scatter-to',  gameData, 'turnover_rate', 'Turnover Rate (%)');
@@ -736,6 +785,8 @@
     updateLabel('lbl-starts-with', [], 'All Players');
     updateLabel('lbl-ends-with',   [], 'All Players');
     updateLabel('lbl-result',      [], 'All Results');
+    document.getElementById('table-search').value = '';
+    tableSort = { key: null, dir: 'asc' };
   }
 
   update();
