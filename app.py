@@ -71,6 +71,11 @@ def api_possessions_table():
     return jsonify(queries.possessions_table(get_filters()))
 
 
+@app.route("/api/game-pace")
+def api_game_pace():
+    return jsonify(queries.game_pace(request.args.get("season") or queries.DEFAULT_SEASON))
+
+
 @app.route("/api/pie-breakdowns")
 def api_pie_breakdowns():
     return jsonify(queries.pie_breakdowns(get_filters()))

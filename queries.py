@@ -148,6 +148,22 @@ def game_scatter(filters):
              "fg_pct": r["fg_pct"], "ppp": r["ppp"], "count": r["count"]} for r in rows]
 
 
+def game_pace(season=DEFAULT_SEASON):
+    """Per-game total possessions and avg possession duration. Ignores filters on purpose."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT game, MIN(date) AS date, COUNT(*) AS possessions, AVG(duration) AS avg_duration
+        FROM possessions
+        WHERE season = ?
+        GROUP BY game
+        ORDER BY MIN(date)
+    """, (season,))
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def pie_breakdowns(filters):
     """Returns counts grouped by result, play_type, starts_with, and player for pie charts."""
     where, params = build_where(filters)
